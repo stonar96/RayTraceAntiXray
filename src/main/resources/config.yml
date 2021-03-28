@@ -1,0 +1,24 @@
+# This is an example configuration. Lines starting with # are comments and are ignored.
+# 
+# settings:
+#   anti-xray:
+#     update-ticks: 1               # Specifies the time period in Minecraft ticks for sending block updates.
+#     ms-per-ray-trace-tick: 50     # Specifies the target time per ray trace tick in milliseconds.
+# world-settings:
+#   default:                        # The values of the 'default' section apply to all worlds, that don't have the values specified.
+#     anti-xray:
+#       ray-trace: true             # Enables ray tracing. Anti-Xray must be enabled in the paper.yml file with 'engine-mode: 1'.
+#       ray-trace-distance: 80.0    # Maximum distance between a player (eye location) and a block (center) for ray tracing.
+#   lobby:                          # Example section for the world 'lobby'. Inherits the missing values from the 'default' section and overrides the existing values.
+#     anti-xray:
+#       ray-trace: false            # Disables ray tracing in the world 'lobby'.
+
+settings:
+  anti-xray:
+    update-ticks: 1
+    ms-per-ray-trace-tick: 50
+world-settings:
+  default:
+    anti-xray:
+      ray-trace: true
+      ray-trace-distance: 80.0
