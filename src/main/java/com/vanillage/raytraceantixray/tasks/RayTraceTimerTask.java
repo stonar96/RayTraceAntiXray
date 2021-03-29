@@ -28,51 +28,15 @@ import net.minecraft.server.v1_16_R3.IBlockData;
 import net.minecraft.server.v1_16_R3.World;
 
 public final class RayTraceTimerTask extends TimerTask {
-    private static final IntArrayConsumer[] centerToXTorus = new IntArrayConsumer[] { c -> c[1]++, c -> {
-        c[1]++;
-        c[2]++;
-    }, c -> c[2]++, c -> {
-        c[1]--;
-        c[2]++;
-    }, c -> c[1]--, c -> {
-        c[1]--;
-        c[2]--;
-    }, c -> c[2]--, c -> {
-        c[1]++;
-        c[2]--;
-    } };
     private static final IntArrayConsumer increaseX = c -> c[0]++;
     private static final IntArrayConsumer decreaseX = c -> c[0]--;
-    private static final IntArrayConsumer[] centerToYTorus = new IntArrayConsumer[] { c -> c[2]++, c -> {
-        c[2]++;
-        c[0]++;
-    }, c -> c[0]++, c -> {
-        c[2]--;
-        c[0]++;
-    }, c -> c[2]--, c -> {
-        c[2]--;
-        c[0]--;
-    }, c -> c[0]--, c -> {
-        c[2]++;
-        c[0]--;
-    } };
     private static final IntArrayConsumer increaseY = c -> c[1]++;
     private static final IntArrayConsumer decreaseY = c -> c[1]--;
-    private static final IntArrayConsumer[] centerToZTorus = new IntArrayConsumer[] { c -> c[0]++, c -> {
-        c[0]++;
-        c[1]++;
-    }, c -> c[1]++, c -> {
-        c[0]--;
-        c[1]++;
-    }, c -> c[0]--, c -> {
-        c[0]--;
-        c[1]--;
-    }, c -> c[1]--, c -> {
-        c[0]++;
-        c[1]--;
-    } };
     private static final IntArrayConsumer increaseZ = c -> c[2]++;
     private static final IntArrayConsumer decreaseZ = c -> c[2]--;
+    private static final IntArrayConsumer[] centerToXTorus = new IntArrayConsumer[] { increaseY, increaseZ, decreaseY, decreaseY, decreaseZ, decreaseZ, increaseY, increaseY };
+    private static final IntArrayConsumer[] centerToYTorus = new IntArrayConsumer[] { increaseZ, increaseX, decreaseZ, decreaseZ, decreaseX, decreaseX, increaseZ, increaseZ };
+    private static final IntArrayConsumer[] centerToZTorus = new IntArrayConsumer[] { increaseX, increaseY, decreaseX, decreaseX, decreaseY, decreaseY, increaseX, increaseX };
     private final int[] ref = new int[3];
     private final RayTraceAntiXray plugin;
 
@@ -167,7 +131,7 @@ public final class RayTraceTimerTask extends TimerTask {
                             blockData = section.getBlocks().a(rayBlock.getX() & 15, rayBlock.getY() & 15, rayBlock.getZ() & 15);
                         }
 
-                        if (solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(blockData)] && closesTorus(rayBlock.getX(), rayBlock.getY(), rayBlock.getZ(), difference, section, chunkCoordIntPair.x, sectionIndex, chunkCoordIntPair.z, playerData, solidGlobal)) {
+                        if (solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(blockData)] && checkSurroundingBlocks(block.getX(), block.getY(), block.getZ(), rayBlock.getX(), rayBlock.getY(), rayBlock.getZ(), difference, section, chunkCoordIntPair.x, sectionIndex, chunkCoordIntPair.z, playerData, solidGlobal)) {
                             update = false;
                             break;
                         }
@@ -214,7 +178,7 @@ public final class RayTraceTimerTask extends TimerTask {
         return blockData;
     }
 
-    private boolean closesTorus(int x, int y, int z, Vector direction, ChunkSection expectedSection, int expectedChunkX, int expectedSectionIndex, int expectedChunkZ, PlayerData playerData, boolean[] solidGlobal) {
+    private boolean checkSurroundingBlocks(int blockX, int blockY, int blockZ, int rayBlockX, int rayBlockY, int rayBlockZ, Vector direction, ChunkSection expectedSection, int expectedChunkX, int expectedSectionIndex, int expectedChunkZ, PlayerData playerData, boolean[] solidGlobal) {
         IntArrayConsumer[] centerToTorus;
         IntArrayConsumer increase;
         IntArrayConsumer decrease;
@@ -225,74 +189,83 @@ public final class RayTraceTimerTask extends TimerTask {
         if (absDirectionX > absDirectionY) {
             if (absDirectionZ > absDirectionX) {
                 centerToTorus = centerToZTorus;
-                increase = increaseZ;
-                decrease = decreaseZ;
+
+                if (direction.getZ() > 0) {
+                    increase = decreaseZ;
+                    decrease = increaseZ;
+                } else {
+                    increase = increaseZ;
+                    decrease = decreaseZ;
+                }
             } else {
                 centerToTorus = centerToXTorus;
-                increase = increaseX;
-                decrease = decreaseX;
+
+                if (direction.getX() > 0) {
+                    increase = decreaseX;
+                    decrease = increaseX;
+                } else {
+                    increase = increaseX;
+                    decrease = decreaseX;
+                }
             }
         } else if (absDirectionY > absDirectionZ) {
             centerToTorus = centerToYTorus;
-            increase = increaseY;
-            decrease = decreaseY;
+
+            if (direction.getY() > 0) {
+                increase = decreaseY;
+                decrease = increaseY;
+            } else {
+                increase = increaseY;
+                decrease = decreaseY;
+            }
         } else {
             centerToTorus = centerToZTorus;
-            increase = increaseZ;
-            decrease = decreaseZ;
+
+            if (direction.getZ() > 0) {
+                increase = decreaseZ;
+                decrease = increaseZ;
+            } else {
+                increase = increaseZ;
+                decrease = decreaseZ;
+            }
         }
 
-        return closesTorus(x, y, z, ref, 0, 0, 0, centerToTorus, increase, decrease, expectedSection, expectedChunkX, expectedSectionIndex, expectedChunkZ, playerData, solidGlobal);
-    }
+        ref[0] = rayBlockX;
+        ref[1] = rayBlockY;
+        ref[2] = rayBlockZ;
 
-    private boolean closesTorus(int x, int y, int z, int[] ref, int step, int initialLayer, int layer, IntArrayConsumer[] centerToTorus, IntArrayConsumer increase, IntArrayConsumer decrease, ChunkSection expectedSection, int expectedChunkX, int expectedSectionIndex, int expectedChunkZ, PlayerData playerData, boolean[] solidGlobal) {
-        ref[0] = x;
-        ref[1] = y;
-        ref[2] = z;
-        centerToTorus[step].accept(ref);
-        IBlockData blockData = getBlockData(ref[0], ref[1], ref[2], expectedSection, expectedChunkX, expectedSectionIndex, expectedChunkZ, playerData);
-
-        if (blockData == null) {
-            return true;
-        }
-
-        if (solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(blockData)]) {
-            return step == 7 || closesTorus(x, y, z, ref, step + 1, step == 0 ? 0 : initialLayer, 0, centerToTorus, increase, decrease, expectedSection, expectedChunkX, expectedSectionIndex, expectedChunkZ, playerData, solidGlobal);
-        }
-
-        if ((layer == 0 || layer == -1) && (step != 7 || initialLayer == 0 || initialLayer == -1)) {
-            decrease.accept(ref);
-            blockData = getBlockData(ref[0], ref[1], ref[2], expectedSection, expectedChunkX, expectedSectionIndex, expectedChunkZ, playerData);
+        for (int step = 0; step < centerToTorus.length; step++) {
+            centerToTorus[step].accept(ref);
+            IBlockData blockData = getBlockData(ref[0], ref[1], ref[2], expectedSection, expectedChunkX, expectedSectionIndex, expectedChunkZ, playerData);
 
             if (blockData == null) {
                 return true;
             }
 
             if (solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(blockData)]) {
-                if (step == 7) {
-                    return true;
-                }
-
-                if (closesTorus(x, y, z, ref, step + 1, step == 0 ? -1 : initialLayer, -1, centerToTorus, increase, decrease, expectedSection, expectedChunkX, expectedSectionIndex, expectedChunkZ, playerData, solidGlobal)) {
-                    return true;
-                } else {
-                    ref[0] = x;
-                    ref[1] = y;
-                    ref[2] = z;
-                    centerToTorus[step].accept(ref);
-                }
-            } else {
-                increase.accept(ref);
+                continue;
             }
-        }
 
-        if ((layer == 0 || layer == 1) && (step != 7 || initialLayer == 0 || initialLayer == 1)) {
             increase.accept(ref);
+
+            if (ref[0] == blockX && ref[1] == blockY && ref[2] == blockZ) {
+                return false;
+            }
+
             blockData = getBlockData(ref[0], ref[1], ref[2], expectedSection, expectedChunkX, expectedSectionIndex, expectedChunkZ, playerData);
-            return blockData == null || solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(blockData)] && (step == 7 || closesTorus(x, y, z, ref, step + 1, step == 0 ? 1 : initialLayer, 1, centerToTorus, increase, decrease, expectedSection, expectedChunkX, expectedSectionIndex, expectedChunkZ, playerData, solidGlobal));
+
+            if (blockData == null) {
+                return true;
+            }
+
+            if (!solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(blockData)]) {
+                return false;
+            }
+
+            decrease.accept(ref);
         }
 
-        return false;
+        return true;
     }
 
     private static interface IntArrayConsumer extends Consumer<int[]> {
