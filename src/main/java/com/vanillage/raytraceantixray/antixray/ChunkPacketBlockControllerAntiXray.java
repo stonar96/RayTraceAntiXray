@@ -50,6 +50,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
     private final int maxChunkSectionIndex;
     private final int updateRadius;
     private final boolean usePermission;
+    private final int maxRayTraceBlockCountPerChunk;
     private final IBlockData[] predefinedBlockData;
     private final IBlockData[] predefinedBlockDataFull;
     private final IBlockData[] predefinedBlockDataStone;
@@ -61,16 +62,18 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
     private final int[] predefinedBlockDataBitsEndStoneGlobal;
     public final boolean[] solidGlobal = new boolean[Block.REGISTRY_ID.size()];
     private final boolean[] obfuscateGlobal = new boolean[Block.REGISTRY_ID.size()];
+    private final boolean[] traceGlobal;
     private final ChunkSection[] emptyNearbyChunkSections = {Chunk.EMPTY_CHUNK_SECTION, Chunk.EMPTY_CHUNK_SECTION, Chunk.EMPTY_CHUNK_SECTION, Chunk.EMPTY_CHUNK_SECTION};
     private final int maxBlockYUpdatePosition;
 
-    public ChunkPacketBlockControllerAntiXray(RayTraceAntiXray plugin, World world, Executor executor) {
+    public ChunkPacketBlockControllerAntiXray(RayTraceAntiXray plugin, int maxRayTraceBlockCountPerChunk, Iterable<? extends String> toTrace, World world, Executor executor) {
         this.plugin = plugin;
         PaperWorldConfig paperWorldConfig = world.paperConfig;
         engineMode = paperWorldConfig.engineMode;
         maxChunkSectionIndex = paperWorldConfig.maxChunkSectionIndex;
         updateRadius = paperWorldConfig.updateRadius;
         usePermission = paperWorldConfig.usePermission;
+        this.maxRayTraceBlockCountPerChunk = maxRayTraceBlockCountPerChunk;
 
         this.executor = executor;
 
@@ -130,6 +133,27 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                 // The OBFHELPER should be getBlockDataList()
                 for (IBlockData blockData : block.getStates().a()) {
                     obfuscateGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(blockData)] = true;
+                }
+            }
+        }
+
+        if (toTrace == null) {
+            traceGlobal = obfuscateGlobal;
+        } else {
+            traceGlobal = new boolean[Block.REGISTRY_ID.size()];
+
+            for (String id : toTrace) {
+                Block block = IRegistry.BLOCK.getOptional(new MinecraftKey(id)).orElse(null);
+
+                // Don't obfuscate air because air causes unnecessary block updates and causes block updates to fail in the void
+                if (block != null && !block.getBlockData().isAir()) {
+                    // Replace all block states of a specified block
+                    // No OBFHELPER for nms.BlockStateList#a() due to too many decompile errors
+                    // The OBFHELPER should be getBlockDataList()
+                    for (IBlockData blockData : block.getStates().a()) {
+                        traceGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(blockData)] = true;
+                        obfuscateGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(blockData)] = true;
+                    }
                 }
             }
         }
@@ -224,26 +248,29 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
     private final ThreadLocal<int[]> predefinedBlockDataBits = ThreadLocal.withInitial(() -> new int[getPredefinedBlockDataFullLength()]);
     private static final ThreadLocal<boolean[]> solid = ThreadLocal.withInitial(() -> new boolean[Block.REGISTRY_ID.size()]);
     private static final ThreadLocal<boolean[]> obfuscate = ThreadLocal.withInitial(() -> new boolean[Block.REGISTRY_ID.size()]);
+    private static final ThreadLocal<boolean[]> trace = ThreadLocal.withInitial(() -> new boolean[Block.REGISTRY_ID.size()]);
     // These boolean arrays represent chunk layers, true means don't obfuscate, false means obfuscate
     private static final ThreadLocal<boolean[][]> current = ThreadLocal.withInitial(() -> new boolean[16][16]);
     private static final ThreadLocal<boolean[][]> next = ThreadLocal.withInitial(() -> new boolean[16][16]);
     private static final ThreadLocal<boolean[][]> nextNext = ThreadLocal.withInitial(() -> new boolean[16][16]);
-    private static final ThreadLocal<boolean[][]> obfuscateCache = ThreadLocal.withInitial(() -> new boolean[16][16]);
+    private static final ThreadLocal<boolean[][]> traceCache = ThreadLocal.withInitial(() -> new boolean[16][16]);
 
     public void obfuscate(ChunkPacketInfoAntiXray chunkPacketInfoAntiXray) {
         int[] predefinedBlockDataBits = this.predefinedBlockDataBits.get();
         boolean[] solid = ChunkPacketBlockControllerAntiXray.solid.get();
         boolean[] obfuscate = ChunkPacketBlockControllerAntiXray.obfuscate.get();
+        boolean[] trace = traceGlobal == obfuscateGlobal ? obfuscate : ChunkPacketBlockControllerAntiXray.trace.get();
         boolean[][] current = ChunkPacketBlockControllerAntiXray.current.get();
         boolean[][] next = ChunkPacketBlockControllerAntiXray.next.get();
         boolean[][] nextNext = ChunkPacketBlockControllerAntiXray.nextNext.get();
-        boolean[][] obfuscateCache = ChunkPacketBlockControllerAntiXray.obfuscateCache.get();
+        boolean[][] traceCache = ChunkPacketBlockControllerAntiXray.traceCache.get();
         // dataBitsReader, dataBitsWriter and nearbyChunkSections could also be reused (with ThreadLocal if necessary) but it's not worth it
         DataBitsReader dataBitsReader = new DataBitsReader();
         DataBitsWriter dataBitsWriter = new DataBitsWriter();
         ChunkSection[] nearbyChunkSections = new ChunkSection[4];
         boolean[] solidTemp = null;
         boolean[] obfuscateTemp = null;
+        boolean[] traceTemp = null;
         dataBitsReader.setDataBits(chunkPacketInfoAntiXray.getData());
         dataBitsWriter.setDataBits(chunkPacketInfoAntiXray.getData());
         int numberOfBlocks = predefinedBlockDataBits.length;
@@ -292,6 +319,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                     dataBitsReader.setIndex(chunkPacketInfoAntiXray.getDataBitsIndex(chunkSectionIndex));
                     solidTemp = readDataPalette(chunkPacketInfoAntiXray.getDataPalette(chunkSectionIndex), solid, solidGlobal);
                     obfuscateTemp = readDataPalette(chunkPacketInfoAntiXray.getDataPalette(chunkSectionIndex), obfuscate, obfuscateGlobal);
+                    traceTemp = trace == obfuscate ? obfuscateTemp : readDataPalette(chunkPacketInfoAntiXray.getDataPalette(chunkSectionIndex), trace, traceGlobal);
                     // Read the blocks of the upper layer of the chunk section below if it exists
                     ChunkSection belowChunkSection = null;
                     boolean skipFirstLayer = chunkSectionIndex == 0 || (belowChunkSection = chunkPacketInfoAntiXray.getChunk().getSections()[chunkSectionIndex - 1]) == Chunk.EMPTY_CHUNK_SECTION;
@@ -300,13 +328,13 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                         for (int x = 0; x < 16; x++) {
                             current[z][x] = true;
                             next[z][x] = skipFirstLayer || !solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(belowChunkSection.getType(x, 15, z))];
-                            obfuscateCache[z][x] = false;
+                            traceCache[z][x] = false;
                         }
                     }
 
                     // Abuse the obfuscateLayer method to read the blocks of the first layer of the current chunk section
                     dataBitsWriter.setBitsPerObject(0);
-                    obfuscateLayer(chunkSectionIndex, -1, dataBitsReader, dataBitsWriter, solidTemp, obfuscateTemp, predefinedBlockDataBitsTemp, current, next, nextNext, obfuscateCache, emptyNearbyChunkSections, random, blocks);
+                    obfuscateLayer(chunkSectionIndex, -1, dataBitsReader, dataBitsWriter, solidTemp, obfuscateTemp, traceTemp, predefinedBlockDataBitsTemp, current, next, nextNext, traceCache, emptyNearbyChunkSections, random, blocks);
                 }
 
                 dataBitsWriter.setBitsPerObject(chunkPacketInfoAntiXray.getBitsPerObject(chunkSectionIndex));
@@ -321,44 +349,42 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                     current = next;
                     next = nextNext;
                     nextNext = temp;
-                    obfuscateLayer(chunkSectionIndex, y, dataBitsReader, dataBitsWriter, solidTemp, obfuscateTemp, predefinedBlockDataBitsTemp, current, next, nextNext, obfuscateCache, nearbyChunkSections, random, blocks);
+                    obfuscateLayer(chunkSectionIndex, y, dataBitsReader, dataBitsWriter, solidTemp, obfuscateTemp, traceTemp, predefinedBlockDataBitsTemp, current, next, nextNext, traceCache, nearbyChunkSections, random, blocks);
                 }
 
                 // Check if the chunk section above doesn't need obfuscation
                 if (chunkSectionIndex == maxChunkSectionIndex || !chunkPacketInfoAntiXray.isWritten(chunkSectionIndex + 1) || chunkPacketInfoAntiXray.getPredefinedObjects(chunkSectionIndex + 1) == null) {
                     // If so, obfuscate the upper layer of the current chunk section by reading blocks of the first layer from the chunk section above if it exists
-                    ChunkSection aboveChunkSection;
+                    ChunkSection aboveChunkSection = chunkSectionIndex == 15 ? Chunk.EMPTY_CHUNK_SECTION : chunkPacketInfoAntiXray.getChunk().getSections()[chunkSectionIndex + 1];
+                    boolean[][] temp = current;
+                    current = next;
+                    next = nextNext;
+                    nextNext = temp;
 
-                    if (chunkSectionIndex != 15 && (aboveChunkSection = chunkPacketInfoAntiXray.getChunk().getSections()[chunkSectionIndex + 1]) != Chunk.EMPTY_CHUNK_SECTION) {
-                        boolean[][] temp = current;
-                        current = next;
-                        next = nextNext;
-                        nextNext = temp;
-
-                        for (int z = 0; z < 16; z++) {
-                            for (int x = 0; x < 16; x++) {
-                                if (!solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(aboveChunkSection.getType(x, 0, z))]) {
-                                    current[z][x] = true;
-                                }
+                    for (int z = 0; z < 16; z++) {
+                        for (int x = 0; x < 16; x++) {
+                            if (aboveChunkSection == Chunk.EMPTY_CHUNK_SECTION || !solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(aboveChunkSection.getType(x, 0, z))]) {
+                                current[z][x] = true;
                             }
                         }
-
-                        // There is nothing to read anymore
-                        dataBitsReader.setBitsPerObject(0);
-                        solid[0] = true;
-                        obfuscateLayer(chunkSectionIndex, 15, dataBitsReader, dataBitsWriter, solid, obfuscateTemp, predefinedBlockDataBitsTemp, current, next, nextNext, obfuscateCache, nearbyChunkSections, random, blocks);
                     }
+
+                    // There is nothing to read anymore
+                    dataBitsReader.setBitsPerObject(0);
+                    solid[0] = true;
+                    obfuscateLayer(chunkSectionIndex, 15, dataBitsReader, dataBitsWriter, solid, obfuscateTemp, traceTemp, predefinedBlockDataBitsTemp, current, next, nextNext, traceCache, nearbyChunkSections, random, blocks);
                 } else {
                     // If not, initialize the reader and other stuff for the chunk section above to obfuscate the upper layer of the current chunk section
                     dataBitsReader.setBitsPerObject(chunkPacketInfoAntiXray.getBitsPerObject(chunkSectionIndex + 1));
                     dataBitsReader.setIndex(chunkPacketInfoAntiXray.getDataBitsIndex(chunkSectionIndex + 1));
                     solidTemp = readDataPalette(chunkPacketInfoAntiXray.getDataPalette(chunkSectionIndex + 1), solid, solidGlobal);
                     obfuscateTemp = readDataPalette(chunkPacketInfoAntiXray.getDataPalette(chunkSectionIndex + 1), obfuscate, obfuscateGlobal);
+                    traceTemp = trace == obfuscate ? obfuscateTemp : readDataPalette(chunkPacketInfoAntiXray.getDataPalette(chunkSectionIndex + 1), trace, traceGlobal);
                     boolean[][] temp = current;
                     current = next;
                     next = nextNext;
                     nextNext = temp;
-                    obfuscateLayer(chunkSectionIndex, 15, dataBitsReader, dataBitsWriter, solidTemp, obfuscateTemp, predefinedBlockDataBitsTemp, current, next, nextNext, obfuscateCache, nearbyChunkSections, random, blocks);
+                    obfuscateLayer(chunkSectionIndex, 15, dataBitsReader, dataBitsWriter, solidTemp, obfuscateTemp, traceTemp, predefinedBlockDataBitsTemp, current, next, nextNext, traceCache, nearbyChunkSections, random, blocks);
                 }
 
                 dataBitsWriter.finish();
@@ -372,13 +398,13 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         chunkPacketInfoAntiXray.getPacketPlayOutMapChunk().setReady(true);
     }
 
-    private void obfuscateLayer(int chunkSectionIndex, int y, DataBitsReader dataBitsReader, DataBitsWriter dataBitsWriter, boolean[] solid, boolean[] obfuscate, int[] predefinedBlockDataBits, boolean[][] current, boolean[][] next, boolean[][] nextNext, boolean[][] obfuscateCache, ChunkSection[] nearbyChunkSections, IntSupplier random, Collection<BlockPosition> blocks) {
+    private void obfuscateLayer(int chunkSectionIndex, int y, DataBitsReader dataBitsReader, DataBitsWriter dataBitsWriter, boolean[] solid, boolean[] obfuscate, boolean[] trace, int[] predefinedBlockDataBits, boolean[][] current, boolean[][] next, boolean[][] nextNext, boolean[][] traceCache, ChunkSection[] nearbyChunkSections, IntSupplier random, Collection<BlockPosition> blocks) {
         int realY = (chunkSectionIndex << 4) + y;
         // First block of first line
         int dataBits = dataBitsReader.read();
 
         if (nextNext[0][0] = !solid[dataBits]) {
-            if (obfuscateCache[0][0]) {
+            if (traceCache[0][0] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                 dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Exposed to air
                 blocks.add(new BlockPosition(0, realY, 0));
             } else {
@@ -389,29 +415,33 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             next[1][0] = true;
         } else {
             if (nearbyChunkSections[2] == Chunk.EMPTY_CHUNK_SECTION || !solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(nearbyChunkSections[2].getType(0, y, 15))] || nearbyChunkSections[0] == Chunk.EMPTY_CHUNK_SECTION || !solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(nearbyChunkSections[0].getType(15, y, 0))] || current[0][0]) {
-                if (obfuscateCache[0][0]) {
+                if (traceCache[0][0] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                     dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Exposed to air
                     blocks.add(new BlockPosition(0, realY, 0));
                 } else {
                     dataBitsWriter.skip();
                 }
             } else {
-                if (obfuscateCache[0][0]) {
-                    dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Not exposed to air
-                } else {
-                    dataBitsWriter.skip();
-                }
+                dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Not exposed to air
             }
         }
 
-        obfuscateCache[0][0] = obfuscate[dataBits];
+        if (trace[dataBits]) {
+            traceCache[0][0] = true;
+        } else {
+            traceCache[0][0] = false;
+
+            if (!obfuscate[dataBits]) {
+                next[0][0] = true;
+            }
+        }
 
         // First line
         for (int x = 1; x < 15; x++) {
             dataBits = dataBitsReader.read();
 
             if (nextNext[0][x] = !solid[dataBits]) {
-                if (obfuscateCache[0][x]) {
+                if (traceCache[0][x] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                     dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Exposed to air
                     blocks.add(new BlockPosition(x, realY, 0));
                 } else {
@@ -423,29 +453,33 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                 next[1][x] = true;
             } else {
                 if (nearbyChunkSections[2] == Chunk.EMPTY_CHUNK_SECTION || !solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(nearbyChunkSections[2].getType(x, y, 15))] || current[0][x]) {
-                    if (obfuscateCache[0][x]) {
+                    if (traceCache[0][x] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                         dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Exposed to air
                         blocks.add(new BlockPosition(x, realY, 0));
                     } else {
                         dataBitsWriter.skip();
                     }
                 } else {
-                    if (obfuscateCache[0][x]) {
-                        dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Not exposed to air
-                    } else {
-                        dataBitsWriter.skip();
-                    }
+                    dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Not exposed to air
                 }
             }
 
-            obfuscateCache[0][x] = obfuscate[dataBits];
+            if (trace[dataBits]) {
+                traceCache[0][x] = true;
+            } else {
+                traceCache[0][x] = false;
+
+                if (!obfuscate[dataBits]) {
+                    next[0][x] = true;
+                }
+            }
         }
 
         // Last block of first line
         dataBits = dataBitsReader.read();
 
         if (nextNext[0][15] = !solid[dataBits]) {
-            if (obfuscateCache[0][15]) {
+            if (traceCache[0][15] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                 dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Exposed to air
                 blocks.add(new BlockPosition(15, realY, 0));
             } else {
@@ -456,22 +490,26 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             next[1][15] = true;
         } else {
             if (nearbyChunkSections[2] == Chunk.EMPTY_CHUNK_SECTION || !solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(nearbyChunkSections[2].getType(15, y, 15))] || nearbyChunkSections[1] == Chunk.EMPTY_CHUNK_SECTION || !solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(nearbyChunkSections[1].getType(0, y, 0))] || current[0][15]) {
-                if (obfuscateCache[0][15]) {
+                if (traceCache[0][15] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                     dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Exposed to air
                     blocks.add(new BlockPosition(15, realY, 0));
                 } else {
                     dataBitsWriter.skip();
                 }
             } else {
-                if (obfuscateCache[0][15]) {
-                    dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Not exposed to air
-                } else {
-                    dataBitsWriter.skip();
-                }
+                dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Not exposed to air
             }
         }
 
-        obfuscateCache[0][15] = obfuscate[dataBits];
+        if (trace[dataBits]) {
+            traceCache[0][15] = true;
+        } else {
+            traceCache[0][15] = false;
+
+            if (!obfuscate[dataBits]) {
+                next[0][15] = true;
+            }
+        }
 
         // All inner lines
         for (int z = 1; z < 15; z++) {
@@ -479,7 +517,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             dataBits = dataBitsReader.read();
 
             if (nextNext[z][0] = !solid[dataBits]) {
-                if (obfuscateCache[z][0]) {
+                if (traceCache[z][0] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                     dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Exposed to air
                     blocks.add(new BlockPosition(0, realY, z));
                 } else {
@@ -491,29 +529,33 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                 next[z + 1][0] = true;
             } else {
                 if (nearbyChunkSections[0] == Chunk.EMPTY_CHUNK_SECTION || !solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(nearbyChunkSections[0].getType(15, y, z))] || current[z][0]) {
-                    if (obfuscateCache[z][0]) {
+                    if (traceCache[z][0] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                         dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Exposed to air
                         blocks.add(new BlockPosition(0, realY, z));
                     } else {
                         dataBitsWriter.skip();
                     }
                 } else {
-                    if (obfuscateCache[z][0]) {
-                        dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Not exposed to air
-                    } else {
-                        dataBitsWriter.skip();
-                    }
+                    dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Not exposed to air
                 }
             }
 
-            obfuscateCache[z][0] = obfuscate[dataBits];
+            if (trace[dataBits]) {
+                traceCache[z][0] = true;
+            } else {
+                traceCache[z][0] = false;
+
+                if (!obfuscate[dataBits]) {
+                    next[z][0] = true;
+                }
+            }
 
             // All inner blocks
             for (int x = 1; x < 15; x++) {
                 dataBits = dataBitsReader.read();
 
                 if (nextNext[z][x] = !solid[dataBits]) {
-                    if (obfuscateCache[z][x]) {
+                    if (traceCache[z][x] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                         dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Exposed to air
                         blocks.add(new BlockPosition(x, realY, z));
                     } else {
@@ -526,29 +568,33 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                     next[z + 1][x] = true;
                 } else {
                     if (current[z][x]) {
-                        if (obfuscateCache[z][x]) {
+                        if (traceCache[z][x] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                             dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Exposed to air
                             blocks.add(new BlockPosition(x, realY, z));
                         } else {
                             dataBitsWriter.skip();
                         }
                     } else {
-                        if (obfuscateCache[z][x]) {
-                            dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Not exposed to air
-                        } else {
-                            dataBitsWriter.skip();
-                        }
+                        dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Not exposed to air
                     }
                 }
 
-                obfuscateCache[z][x] = obfuscate[dataBits];
+                if (trace[dataBits]) {
+                    traceCache[z][x] = true;
+                } else {
+                    traceCache[z][x] = false;
+
+                    if (!obfuscate[dataBits]) {
+                        next[z][x] = true;
+                    }
+                }
             }
 
             // Last block
             dataBits = dataBitsReader.read();
 
             if (nextNext[z][15] = !solid[dataBits]) {
-                if (obfuscateCache[z][15]) {
+                if (traceCache[z][15] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                     dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Exposed to air
                     blocks.add(new BlockPosition(15, realY, z));
                 } else {
@@ -560,29 +606,33 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                 next[z + 1][15] = true;
             } else {
                 if (nearbyChunkSections[1] == Chunk.EMPTY_CHUNK_SECTION || !solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(nearbyChunkSections[1].getType(0, y, z))] || current[z][15]) {
-                    if (obfuscateCache[z][15]) {
+                    if (traceCache[z][15] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                         dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Exposed to air
                         blocks.add(new BlockPosition(15, realY, z));
                     } else {
                         dataBitsWriter.skip();
                     }
                 } else {
-                    if (obfuscateCache[z][15]) {
-                        dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Not exposed to air
-                    } else {
-                        dataBitsWriter.skip();
-                    }
+                    dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Not exposed to air
                 }
             }
 
-            obfuscateCache[z][15] = obfuscate[dataBits];
+            if (trace[dataBits]) {
+                traceCache[z][15] = true;
+            } else {
+                traceCache[z][15] = false;
+
+                if (!obfuscate[dataBits]) {
+                    next[z][15] = true;
+                }
+            }
         }
 
         // First block of last line
         dataBits = dataBitsReader.read();
 
         if (nextNext[15][0] = !solid[dataBits]) {
-            if (obfuscateCache[15][0]) {
+            if (traceCache[15][0] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                 dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Exposed to air
                 blocks.add(new BlockPosition(0, realY, 15));
             } else {
@@ -593,29 +643,33 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             next[14][0] = true;
         } else {
             if (nearbyChunkSections[3] == Chunk.EMPTY_CHUNK_SECTION || !solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(nearbyChunkSections[3].getType(0, y, 0))] || nearbyChunkSections[0] == Chunk.EMPTY_CHUNK_SECTION || !solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(nearbyChunkSections[0].getType(15, y, 15))] || current[15][0]) {
-                if (obfuscateCache[15][0]) {
+                if (traceCache[15][0] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                     dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Exposed to air
                     blocks.add(new BlockPosition(0, realY, 15));
                 } else {
                     dataBitsWriter.skip();
                 }
             } else {
-                if (obfuscateCache[15][0]) {
-                    dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Not exposed to air
-                } else {
-                    dataBitsWriter.skip();
-                }
+                dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Not exposed to air
             }
         }
 
-        obfuscateCache[15][0] = obfuscate[dataBits];
+        if (trace[dataBits]) {
+            traceCache[15][0] = true;
+        } else {
+            traceCache[15][0] = false;
+
+            if (!obfuscate[dataBits]) {
+                next[15][0] = true;
+            }
+        }
 
         // Last line
         for (int x = 1; x < 15; x++) {
             dataBits = dataBitsReader.read();
 
             if (nextNext[15][x] = !solid[dataBits]) {
-                if (obfuscateCache[15][x]) {
+                if (traceCache[15][x] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                     dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Exposed to air
                     blocks.add(new BlockPosition(x, realY, 15));
                 } else {
@@ -627,29 +681,33 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                 next[14][x] = true;
             } else {
                 if (nearbyChunkSections[3] == Chunk.EMPTY_CHUNK_SECTION || !solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(nearbyChunkSections[3].getType(x, y, 0))] || current[15][x]) {
-                    if (obfuscateCache[15][x]) {
+                    if (traceCache[15][x] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                         dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Exposed to air
                         blocks.add(new BlockPosition(x, realY, 15));
                     } else {
                         dataBitsWriter.skip();
                     }
                 } else {
-                    if (obfuscateCache[15][x]) {
-                        dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Not exposed to air
-                    } else {
-                        dataBitsWriter.skip();
-                    }
+                    dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Not exposed to air
                 }
             }
 
-            obfuscateCache[15][x] = obfuscate[dataBits];
+            if (trace[dataBits]) {
+                traceCache[15][x] = true;
+            } else {
+                traceCache[15][x] = false;
+
+                if (!obfuscate[dataBits]) {
+                    next[15][x] = true;
+                }
+            }
         }
 
         // Last block of last line
         dataBits = dataBitsReader.read();
 
         if (nextNext[15][15] = !solid[dataBits]) {
-            if (obfuscateCache[15][15]) {
+            if (traceCache[15][15] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                 dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Exposed to air
                 blocks.add(new BlockPosition(15, realY, 15));
             } else {
@@ -660,22 +718,26 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             next[14][15] = true;
         } else {
             if (nearbyChunkSections[3] == Chunk.EMPTY_CHUNK_SECTION || !solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(nearbyChunkSections[3].getType(15, y, 0))] || nearbyChunkSections[1] == Chunk.EMPTY_CHUNK_SECTION || !solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(nearbyChunkSections[1].getType(0, y, 15))] || current[15][15]) {
-                if (obfuscateCache[15][15]) {
+                if (traceCache[15][15] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                     dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Exposed to air
                     blocks.add(new BlockPosition(15, realY, 15));
                 } else {
                     dataBitsWriter.skip();
                 }
             } else {
-                if (obfuscateCache[15][15]) {
-                    dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Not exposed to air
-                } else {
-                    dataBitsWriter.skip();
-                }
+                dataBitsWriter.write(predefinedBlockDataBits[random.getAsInt()]); // Not exposed to air
             }
         }
 
-        obfuscateCache[15][15] = obfuscate[dataBits];
+        if (trace[dataBits]) {
+            traceCache[15][15] = true;
+        } else {
+            traceCache[15][15] = false;
+
+            if (!obfuscate[dataBits]) {
+                next[15][15] = true;
+            }
+        }
     }
 
     private boolean[] readDataPalette(DataPalette<IBlockData> dataPalette, boolean[] temp, boolean[] global) {
