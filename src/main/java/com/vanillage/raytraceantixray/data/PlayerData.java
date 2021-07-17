@@ -1,5 +1,6 @@
 package com.vanillage.raytraceantixray.data;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -12,23 +13,23 @@ import net.minecraft.server.v1_16_R3.ChunkCoordIntPair;
 
 public final class PlayerData {
     private final Map<ChunkCoordIntPair, ChunkBlocks> chunks = new ConcurrentHashMap<>();
-    private volatile Location location = null;
+    private volatile List<? extends Location> locations;
     private final Queue<BlockPosition> result = new ConcurrentLinkedQueue<>();
 
-    public PlayerData(Location location) {
-        this.location = location;
+    public PlayerData(List<? extends Location> locations) {
+        this.locations = locations;
     }
 
     public Map<ChunkCoordIntPair, ChunkBlocks> getChunks() {
         return chunks;
     }
 
-    public Location getLocation() {
-        return location;
+    public List<? extends Location> getLocations() {
+        return locations;
     }
 
-    public void setLocation(Location location) {
-        this.location = location;
+    public void setLocations(List<? extends Location> locations) {
+        this.locations = locations;
     }
 
     public Queue<BlockPosition> getResult() {

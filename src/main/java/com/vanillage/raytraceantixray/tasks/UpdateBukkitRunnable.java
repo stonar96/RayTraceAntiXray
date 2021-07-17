@@ -26,7 +26,7 @@ public final class UpdateBukkitRunnable extends BukkitRunnable {
     public void run() {
         for (Entry<UUID, PlayerData> entry : plugin.getPlayerData().entrySet()) {
             PlayerData playerData = entry.getValue();
-            World world = ((CraftWorld) playerData.getLocation().getWorld()).getHandle();
+            World world = ((CraftWorld) playerData.getLocations().get(0).getWorld()).getHandle();
             ChunkPacketBlockController chunkPacketBlockController = world.chunkPacketBlockController;
 
             if (chunkPacketBlockController instanceof ChunkPacketBlockControllerAntiXray) {

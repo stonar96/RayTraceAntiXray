@@ -1,15 +1,13 @@
 package com.vanillage.raytraceantixray.data;
 
-import java.util.Collection;
-
 import net.minecraft.server.v1_16_R3.BlockPosition;
 import net.minecraft.server.v1_16_R3.Chunk;
 
 public final class ChunkBlocks {
     private final Chunk chunk;
-    private final Collection<BlockPosition> blocks;
+    private final Iterable<? extends BlockPosition> blocks;
 
-    public ChunkBlocks(Chunk chunk, Collection<BlockPosition> blocks) {
+    public ChunkBlocks(Chunk chunk, Iterable<? extends BlockPosition> blocks) {
         this.chunk = chunk;
         this.blocks = blocks;
     }
@@ -18,7 +16,7 @@ public final class ChunkBlocks {
         return chunk;
     }
 
-    public Collection<BlockPosition> getBlocks() {
+    public Iterable<? extends BlockPosition> getBlocks() {
         return blocks;
     }
 }

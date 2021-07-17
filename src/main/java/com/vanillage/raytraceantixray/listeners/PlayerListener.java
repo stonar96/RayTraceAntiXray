@@ -20,7 +20,7 @@ public final class PlayerListener implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        plugin.getPlayerData().put(event.getPlayer().getUniqueId(), new PlayerData(event.getPlayer().getEyeLocation()));
+        plugin.getPlayerData().put(event.getPlayer().getUniqueId(), new PlayerData(plugin.getLocations(event.getPlayer(), event.getPlayer().getEyeLocation())));
     }
 
     @EventHandler
@@ -33,10 +33,10 @@ public final class PlayerListener implements Listener {
         PlayerData playerData = plugin.getPlayerData().get(event.getPlayer().getUniqueId());
         Location location = event.getTo();
 
-        if (location.getWorld().equals(playerData.getLocation().getWorld())) {
+        if (location.getWorld().equals(playerData.getLocations().get(0).getWorld())) {
             location = location.clone();
             location.setY(location.getY() + event.getPlayer().getEyeHeight());
-            playerData.setLocation(location);
+            playerData.setLocations(plugin.getLocations(event.getPlayer(), location));
         }
     }
 }

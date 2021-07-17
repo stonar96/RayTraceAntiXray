@@ -1,12 +1,12 @@
 package com.vanillage.raytraceantixray.tasks;
 
 import java.lang.reflect.Field;
-import java.util.Collection;
 import java.util.Iterator;
-import java.util.UUID;
-import java.util.function.Consumer;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.TimerTask;
+import java.util.UUID;
+import java.util.function.Consumer;
 
 import org.bukkit.Location;
 import org.bukkit.craftbukkit.v1_16_R3.CraftWorld;
@@ -48,13 +48,14 @@ public final class RayTraceTimerTask extends TimerTask {
     public void run() {
         for (Entry<UUID, PlayerData> entry : plugin.getPlayerData().entrySet()) {
             PlayerData playerData = entry.getValue();
-            Location location = playerData.getLocation();
+            List<? extends Location> locations = playerData.getLocations();
+            Location playerLocation = locations.get(0);
             boolean[] solidGlobal = null;
 
             try {
                 Field field = World.class.getDeclaredField("chunkPacketBlockController");
                 field.setAccessible(true);
-                ChunkPacketBlockController chunkPacketBlockController = (ChunkPacketBlockController) field.get(((CraftWorld) location.getWorld()).getHandle());
+                ChunkPacketBlockController chunkPacketBlockController = (ChunkPacketBlockController) field.get(((CraftWorld) playerLocation.getWorld()).getHandle());
 
                 if (chunkPacketBlockController instanceof ChunkPacketBlockControllerAntiXray) {
                     solidGlobal = ((ChunkPacketBlockControllerAntiXray) chunkPacketBlockController).solidGlobal;
@@ -65,81 +66,83 @@ public final class RayTraceTimerTask extends TimerTask {
                 e.printStackTrace();
             }
 
-            Vector vector = location.toVector();
-            Vector direction = location.getDirection();
-            double rayTraceDistance = Math.max(plugin.getConfig().getDouble("world-settings." + location.getWorld().getName() + ".anti-xray.ray-trace-distance", plugin.getConfig().getDouble("world-settings.default.anti-xray.ray-trace-distance")), 0.);
-            Location temp = location.clone();
-            temp.setX(location.getX() - rayTraceDistance);
-            temp.setZ(location.getZ() - rayTraceDistance);
+            double rayTraceDistance = Math.max(plugin.getConfig().getDouble("world-settings." + playerLocation.getWorld().getName() + ".anti-xray.ray-trace-distance", plugin.getConfig().getDouble("world-settings.default.anti-xray.ray-trace-distance")), 0.);
+            Location temp = playerLocation.clone();
+            temp.setX(playerLocation.getX() - rayTraceDistance);
+            temp.setZ(playerLocation.getZ() - rayTraceDistance);
             int chunkXMin = temp.getBlockX() >> 4;
             int chunkZMin = temp.getBlockZ() >> 4;
-            temp.setX(location.getX() + rayTraceDistance);
-            temp.setZ(location.getZ() + rayTraceDistance);
+            temp.setX(playerLocation.getX() + rayTraceDistance);
+            temp.setZ(playerLocation.getZ() + rayTraceDistance);
             int chunkXMax = temp.getBlockX() >> 4;
             int chunkZMax = temp.getBlockZ() >> 4;
             double rayTraceDistanceSquared = rayTraceDistance * rayTraceDistance;
 
-            for (Entry<ChunkCoordIntPair, ChunkBlocks> chunkEntry : playerData.getChunks().entrySet()) {
-                ChunkBlocks chunkBlocks = chunkEntry.getValue();
-                Chunk chunk = chunkBlocks.getChunk();
+            for (Location location : locations) {
+                Vector vector = location.toVector();
+                Vector direction = location.getDirection();
 
-                if (chunk.locX < chunkXMin || chunk.locX > chunkXMax || chunk.locZ < chunkZMin || chunk.locZ > chunkZMax) {
-                    continue;
-                }
+                for (Entry<ChunkCoordIntPair, ChunkBlocks> chunkEntry : playerData.getChunks().entrySet()) {
+                    ChunkBlocks chunkBlocks = chunkEntry.getValue();
+                    Chunk chunk = chunkBlocks.getChunk();
 
-                Collection<BlockPosition> blocks = chunkBlocks.getBlocks();
-                Iterator<BlockPosition> iterator = blocks.iterator();
-
-                while (iterator.hasNext()) {
-                    BlockPosition block = iterator.next();
-                    block = new BlockPosition((chunk.locX << 4) + block.getX(), block.getY(), (chunk.locZ << 4) + block.getZ());
-                    Vector blockCenter = new Vector(block.getX() + 0.5, block.getY() + 0.5, block.getZ() + 0.5);
-                    Vector difference = vector.clone().subtract(blockCenter);
-
-                    if (difference.lengthSquared() > rayTraceDistanceSquared || difference.dot(direction) > 0.) {
+                    if (chunk.locX < chunkXMin || chunk.locX > chunkXMax || chunk.locZ < chunkZMin || chunk.locZ > chunkZMax) {
                         continue;
                     }
 
-                    Iterator<BlockPosition> blockIterator = new BlockIterator(blockCenter, vector);
-                    boolean update = true;
+                    Iterator<? extends BlockPosition> iterator = chunkBlocks.getBlocks().iterator();
 
-                    while (blockIterator.hasNext()) {
-                        BlockPosition rayBlock = blockIterator.next();
-                        int sectionIndex = rayBlock.getY() >> 4;
+                    while (iterator.hasNext()) {
+                        BlockPosition block = iterator.next();
+                        block = new BlockPosition((chunk.locX << 4) + block.getX(), block.getY(), (chunk.locZ << 4) + block.getZ());
+                        Vector blockCenter = new Vector(block.getX() + 0.5, block.getY() + 0.5, block.getZ() + 0.5);
+                        Vector difference = vector.clone().subtract(blockCenter);
 
-                        if (sectionIndex < 0 || sectionIndex > 15) {
+                        if (difference.lengthSquared() > rayTraceDistanceSquared || difference.dot(direction) > 0.) {
                             continue;
                         }
 
-                        ChunkCoordIntPair chunkCoordIntPair = new ChunkCoordIntPair(rayBlock);
-                        ChunkBlocks rayChunkBlocks = playerData.getChunks().get(chunkCoordIntPair);
+                        Iterator<BlockPosition> blockIterator = new BlockIterator(blockCenter, vector);
+                        boolean update = true;
 
-                        if (rayChunkBlocks == null) {
-                            update = false;
-                            break;
+                        while (blockIterator.hasNext()) {
+                            BlockPosition rayBlock = blockIterator.next();
+                            int sectionIndex = rayBlock.getY() >> 4;
+
+                            if (sectionIndex < 0 || sectionIndex > 15) {
+                                continue;
+                            }
+
+                            ChunkCoordIntPair chunkCoordIntPair = new ChunkCoordIntPair(rayBlock);
+                            ChunkBlocks rayChunkBlocks = playerData.getChunks().get(chunkCoordIntPair);
+
+                            if (rayChunkBlocks == null) {
+                                update = false;
+                                break;
+                            }
+
+                            ChunkSection section = rayChunkBlocks.getChunk().getSections()[sectionIndex];
+
+                            if (section == null) {
+                                continue;
+                            }
+
+                            IBlockData blockData;
+
+                            synchronized (section.getBlocks()) {
+                                blockData = section.getBlocks().a(rayBlock.getX() & 15, rayBlock.getY() & 15, rayBlock.getZ() & 15);
+                            }
+
+                            if (solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(blockData)] && checkSurroundingBlocks(block.getX(), block.getY(), block.getZ(), rayBlock.getX(), rayBlock.getY(), rayBlock.getZ(), difference, section, chunkCoordIntPair.x, sectionIndex, chunkCoordIntPair.z, playerData, solidGlobal)) {
+                                update = false;
+                                break;
+                            }
                         }
 
-                        ChunkSection section = rayChunkBlocks.getChunk().getSections()[sectionIndex];
-
-                        if (section == null) {
-                            continue;
+                        if (update) {
+                            playerData.getResult().add(block);
+                            iterator.remove();
                         }
-
-                        IBlockData blockData;
-
-                        synchronized (section.getBlocks()) {
-                            blockData = section.getBlocks().a(rayBlock.getX() & 15, rayBlock.getY() & 15, rayBlock.getZ() & 15);
-                        }
-
-                        if (solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(blockData)] && checkSurroundingBlocks(block.getX(), block.getY(), block.getZ(), rayBlock.getX(), rayBlock.getY(), rayBlock.getZ(), difference, section, chunkCoordIntPair.x, sectionIndex, chunkCoordIntPair.z, playerData, solidGlobal)) {
-                            update = false;
-                            break;
-                        }
-                    }
-
-                    if (update) {
-                        playerData.getResult().add(block);
-                        iterator.remove();
                     }
                 }
             }

@@ -1,6 +1,6 @@
 name: RayTraceAntiXray
 main: com.vanillage.raytraceantixray.RayTraceAntiXray
-version: 1.2
+version: 1.3
 api-version: 1.16
 load: startup
 depend: [ProtocolLib]

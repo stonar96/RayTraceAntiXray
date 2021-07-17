@@ -8,6 +8,7 @@
 #   default:                                    # The values of the 'default' section apply to all worlds, that don't have the values specified.
 #     anti-xray:
 #       ray-trace: true                         # Enables ray tracing. Anti-Xray must be enabled in the paper.yml file with 'engine-mode: 1'.
+#       ray-trace-third-person: false           # Whether or not to ray trace third person back and front view. Note that this is even more resource intensive.
 #       ray-trace-distance: 80.0                # Maximum distance between a player (eye location) and a block (center) for ray tracing.
 #       max-ray-trace-block-count-per-chunk: 30 # The maximum number of ray traced blocks per chunk. Counting starts at the bottom of the world and increases upwards.
 #       ray-trace-blocks:                       # Specifies the blocks that will be obfuscated and ray traced. The hidden-blocks specified in the paper.yml file will only be obfuscated (but not ray traced when exposed to transparent blocks). If this list is empty, the hidden-blocks specified in the paper.yml file will be used.
@@ -25,6 +26,7 @@ world-settings:
   default:
     anti-xray:
       ray-trace: true
+      ray-trace-third-person: false
       ray-trace-distance: 80.0
       max-ray-trace-block-count-per-chunk: 30
       ray-trace-blocks: []
