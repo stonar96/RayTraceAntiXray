@@ -8,7 +8,6 @@ Paper plugin for server-side async ray tracing to hide ores that are exposed to 
 * Configure RayTraceAntiXray by editing the file plugins/RayTraceAntiXray/[config.yml](src/main/resources/config.yml).
 ## Known issues
 * The plugin is generally very resource intensive. I do not recommend using it in production. It is only an experimental project that I have made for fun.
-* The plugin only supports the first person perspective (F5 key). (Could be fixed with much overhead by calculating all possible perspectives.)
 * In principle, the plugin can also hide tile entities. However, the tile entity packets are still being sent, which means that more clever hacked clients could bypass this. (Could be fixed by not sending the tile entity packets until the block is updated.)
 * The culling algorithm is not 100% accurate for performance reasons. When in doubt, it is assumed that a block is visible. Usually, however, this cannot be abused.
 ## Demo
