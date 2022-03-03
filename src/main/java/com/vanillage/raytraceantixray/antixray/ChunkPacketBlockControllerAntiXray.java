@@ -398,7 +398,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         chunkPacketInfoAntiXray.getPacketPlayOutMapChunk().setReady(true);
     }
 
-    private void obfuscateLayer(int chunkSectionIndex, int y, DataBitsReader dataBitsReader, DataBitsWriter dataBitsWriter, boolean[] solid, boolean[] obfuscate, boolean[] trace, int[] predefinedBlockDataBits, boolean[][] current, boolean[][] next, boolean[][] nextNext, boolean[][] traceCache, ChunkSection[] nearbyChunkSections, IntSupplier random, Collection<BlockPosition> blocks) {
+    private void obfuscateLayer(int chunkSectionIndex, int y, DataBitsReader dataBitsReader, DataBitsWriter dataBitsWriter, boolean[] solid, boolean[] obfuscate, boolean[] trace, int[] predefinedBlockDataBits, boolean[][] current, boolean[][] next, boolean[][] nextNext, boolean[][] traceCache, ChunkSection[] nearbyChunkSections, IntSupplier random, Collection<? super BlockPosition> blocks) {
         int realY = (chunkSectionIndex << 4) + y;
         // First block of first line
         int dataBits = dataBitsReader.read();

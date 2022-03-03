@@ -4,6 +4,7 @@
 #   anti-xray:
 #     update-ticks: 1                           # Specifies the time period in Minecraft ticks for sending block updates.
 #     ms-per-ray-trace-tick: 50                 # Specifies the target time per ray trace tick in milliseconds.
+#     ray-trace-threads: 2                      # Specifies the number of threads that are used for ray tracing.
 # world-settings:
 #   default:                                    # The values of the 'default' section apply to all worlds, that don't have the values specified.
 #     anti-xray:
@@ -22,6 +23,7 @@ settings:
   anti-xray:
     update-ticks: 1
     ms-per-ray-trace-tick: 50
+    ray-trace-threads: 2
 world-settings:
   default:
     anti-xray:

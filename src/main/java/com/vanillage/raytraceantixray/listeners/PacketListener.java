@@ -11,6 +11,7 @@ import com.vanillage.raytraceantixray.RayTraceAntiXray;
 import com.vanillage.raytraceantixray.data.ChunkBlocks;
 import com.vanillage.raytraceantixray.data.PlayerData;
 
+import net.minecraft.server.v1_16_R3.Chunk;
 import net.minecraft.server.v1_16_R3.ChunkCoordIntPair;
 
 public final class PacketListener extends PacketAdapter {
@@ -25,7 +26,7 @@ public final class PacketListener extends PacketAdapter {
     public void onPacketSending(PacketEvent event) {
         if (event.getPacketType() == PacketType.Play.Server.MAP_CHUNK) {
             PlayerData playerData = plugin.getPlayerData().get(event.getPlayer().getUniqueId());
-            ChunkBlocks chunkBlocks = plugin.getPacketChunkBlocksCache().remove(event.getPacket().getHandle());
+            ChunkBlocks chunkBlocks = plugin.getPacketChunkBlocksCache().get(event.getPacket().getHandle());
 
             if (chunkBlocks == null) {
                 Location location = event.getPlayer().getEyeLocation();
@@ -39,10 +40,16 @@ public final class PacketListener extends PacketAdapter {
                 return;
             }
 
-            if (!chunkBlocks.getChunk().getWorld().getWorld().equals(playerData.getLocations().get(0).getWorld())) {
+            Chunk chunk = chunkBlocks.getChunk();
+
+            if (chunk == null) {
+                return;
+            }
+
+            if (!chunk.getWorld().getWorld().equals(playerData.getLocations().get(0).getWorld())) {
                 Location location = event.getPlayer().getEyeLocation();
 
-                if (!chunkBlocks.getChunk().getWorld().getWorld().equals(location.getWorld())) {
+                if (!chunk.getWorld().getWorld().equals(location.getWorld())) {
                     // (Chunk) packets can be delayed.
                     // If the worlds don't match, the player is already in another world.
                     // The packet can be ignored.
@@ -53,7 +60,7 @@ public final class PacketListener extends PacketAdapter {
                 plugin.getPlayerData().put(event.getPlayer().getUniqueId(), playerData);
             }
 
-            playerData.getChunks().put(chunkBlocks.getChunk().getPos(), chunkBlocks);
+            playerData.getChunks().put(chunk.getPos(), chunkBlocks);
         } else if (event.getPacketType() == PacketType.Play.Server.UNLOAD_CHUNK) {
             StructureModifier<Integer> integers = event.getPacket().getIntegers();
             plugin.getPlayerData().get(event.getPlayer().getUniqueId()).getChunks().remove(new ChunkCoordIntPair(integers.read(0), integers.read(1)));

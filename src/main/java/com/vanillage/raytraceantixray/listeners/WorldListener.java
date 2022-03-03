@@ -14,6 +14,7 @@ import com.vanillage.raytraceantixray.antixray.ChunkPacketBlockControllerAntiXra
 
 import net.minecraft.server.v1_16_R3.MinecraftServer;
 import net.minecraft.server.v1_16_R3.World;
+import sun.misc.Unsafe;
 
 public final class WorldListener implements Listener {
     private final RayTraceAntiXray plugin;
@@ -31,7 +32,10 @@ public final class WorldListener implements Listener {
             try {
                 Field chunkPacketBlockController = World.class.getDeclaredField("chunkPacketBlockController");
                 chunkPacketBlockController.setAccessible(true);
-                chunkPacketBlockController.set(((CraftWorld) event.getWorld()).getHandle(), new ChunkPacketBlockControllerAntiXray(plugin, plugin.getConfig().getInt("world-settings." + event.getWorld().getName() + ".anti-xray.max-ray-trace-block-count-per-chunk", plugin.getConfig().getInt("world-settings.default.anti-xray.max-ray-trace-block-count-per-chunk")), toTrace.isEmpty() ? null : toTrace, ((CraftWorld) event.getWorld()).getHandle(), MinecraftServer.getServer().executorService));
+                Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
+                theUnsafe.setAccessible(true);
+                Unsafe unsafe = (Unsafe) theUnsafe.get(null);
+                unsafe.putObject(((CraftWorld) event.getWorld()).getHandle(), unsafe.objectFieldOffset(chunkPacketBlockController), new ChunkPacketBlockControllerAntiXray(plugin, plugin.getConfig().getInt("world-settings." + event.getWorld().getName() + ".anti-xray.max-ray-trace-block-count-per-chunk", plugin.getConfig().getInt("world-settings.default.anti-xray.max-ray-trace-block-count-per-chunk")), toTrace.isEmpty() ? null : toTrace, ((CraftWorld) event.getWorld()).getHandle(), MinecraftServer.getServer().executorService));
             } catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
                 e.printStackTrace();
             }
