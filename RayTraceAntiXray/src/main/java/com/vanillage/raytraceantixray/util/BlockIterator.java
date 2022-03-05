@@ -5,10 +5,10 @@ import java.util.NoSuchElementException;
 
 import org.bukkit.util.Vector;
 
-import net.minecraft.server.v1_16_R3.BlockPosition;
-import net.minecraft.server.v1_16_R3.MathHelper;
+import net.minecraft.core.BlockPos;
+import net.minecraft.util.Mth;
 
-public final class BlockIterator implements Iterator<BlockPosition> {
+public final class BlockIterator implements Iterator<BlockPos> {
     private final Vector start;
     private final Vector direction;
     private final double distanceSquared;
@@ -27,7 +27,7 @@ public final class BlockIterator implements Iterator<BlockPosition> {
     private double xFaceDistanceSquared;
     private double yFaceDistanceSquared;
     private double zFaceDistanceSquared;
-    private BlockPosition next;
+    private BlockPos next;
 
     public BlockIterator(Vector start, Vector end) {
         this.start = start.clone();
@@ -94,7 +94,7 @@ public final class BlockIterator implements Iterator<BlockPosition> {
         if (xFaceDistanceSquared < yFaceDistanceSquared) {
             if (zFaceDistanceSquared < xFaceDistanceSquared) {
                 if (zFaceDistanceSquared <= distanceSquared) {
-                    next = new BlockPosition(MathHelper.floor(zFaceX), MathHelper.floor(zFaceY), zFace + (zDirection - 1) / 2);
+                    next = new BlockPos(Mth.floor(zFaceX), Mth.floor(zFaceY), zFace + (zDirection - 1) / 2);
                     zFace += zDirection;
                     intersectZ();
                 } else {
@@ -102,7 +102,7 @@ public final class BlockIterator implements Iterator<BlockPosition> {
                 }
             } else {
                 if (xFaceDistanceSquared <= distanceSquared) {
-                    next = new BlockPosition(xFace + (xDirection - 1) / 2, MathHelper.floor(xFaceY), MathHelper.floor(xFaceZ));
+                    next = new BlockPos(xFace + (xDirection - 1) / 2, Mth.floor(xFaceY), Mth.floor(xFaceZ));
                     xFace += xDirection;
                     intersectX();
                 } else {
@@ -111,7 +111,7 @@ public final class BlockIterator implements Iterator<BlockPosition> {
             }
         } else if (yFaceDistanceSquared < zFaceDistanceSquared) {
             if (yFaceDistanceSquared <= distanceSquared) {
-                next = new BlockPosition(MathHelper.floor(yFaceX), yFace + (yDirection - 1) / 2, MathHelper.floor(yFaceZ));
+                next = new BlockPos(Mth.floor(yFaceX), yFace + (yDirection - 1) / 2, Mth.floor(yFaceZ));
                 yFace += yDirection;
                 intersectY();
             } else {
@@ -119,7 +119,7 @@ public final class BlockIterator implements Iterator<BlockPosition> {
             }
         } else {
             if (zFaceDistanceSquared <= distanceSquared) {
-                next = new BlockPosition(MathHelper.floor(zFaceX), MathHelper.floor(zFaceY), zFace + (zDirection - 1) / 2);
+                next = new BlockPos(Mth.floor(zFaceX), Mth.floor(zFaceY), zFace + (zDirection - 1) / 2);
                 zFace += zDirection;
                 intersectZ();
             } else {
@@ -134,8 +134,8 @@ public final class BlockIterator implements Iterator<BlockPosition> {
     }
 
     @Override
-    public BlockPosition next() {
-        BlockPosition next = this.next;
+    public BlockPos next() {
+        BlockPos next = this.next;
 
         if (next == null) {
             throw new NoSuchElementException();

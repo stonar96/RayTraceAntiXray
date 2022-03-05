@@ -1,4 +1,5 @@
 # Maven
+cache/
 target/
 pom.xml.tag
 pom.xml.releaseBackup
@@ -35,8 +36,3 @@ buildNumber.properties
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
-
-# IDE
-/.settings/
-/.classpath
-/.project

@@ -11,8 +11,8 @@ import com.vanillage.raytraceantixray.RayTraceAntiXray;
 import com.vanillage.raytraceantixray.data.ChunkBlocks;
 import com.vanillage.raytraceantixray.data.PlayerData;
 
-import net.minecraft.server.v1_16_R3.Chunk;
-import net.minecraft.server.v1_16_R3.ChunkCoordIntPair;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.chunk.LevelChunk;
 
 public final class PacketListener extends PacketAdapter {
     private final RayTraceAntiXray plugin;
@@ -40,16 +40,16 @@ public final class PacketListener extends PacketAdapter {
                 return;
             }
 
-            Chunk chunk = chunkBlocks.getChunk();
+            LevelChunk chunk = chunkBlocks.getChunk();
 
             if (chunk == null) {
                 return;
             }
 
-            if (!chunk.getWorld().getWorld().equals(playerData.getLocations().get(0).getWorld())) {
+            if (!chunk.getLevel().getWorld().equals(playerData.getLocations().get(0).getWorld())) {
                 Location location = event.getPlayer().getEyeLocation();
 
-                if (!chunk.getWorld().getWorld().equals(location.getWorld())) {
+                if (!chunk.getLevel().getWorld().equals(location.getWorld())) {
                     // (Chunk) packets can be delayed.
                     // If the worlds don't match, the player is already in another world.
                     // The packet can be ignored.
@@ -63,7 +63,7 @@ public final class PacketListener extends PacketAdapter {
             playerData.getChunks().put(chunk.getPos(), chunkBlocks);
         } else if (event.getPacketType() == PacketType.Play.Server.UNLOAD_CHUNK) {
             StructureModifier<Integer> integers = event.getPacket().getIntegers();
-            plugin.getPlayerData().get(event.getPlayer().getUniqueId()).getChunks().remove(new ChunkCoordIntPair(integers.read(0), integers.read(1)));
+            plugin.getPlayerData().get(event.getPlayer().getUniqueId()).getChunks().remove(new ChunkPos(integers.read(0), integers.read(1)));
         }
     }
 }

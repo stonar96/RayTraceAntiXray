@@ -7,7 +7,7 @@ import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 
 import org.bukkit.Location;
-import org.bukkit.craftbukkit.v1_16_R3.CraftWorld;
+import org.bukkit.craftbukkit.v1_17_R1.CraftWorld;
 import org.bukkit.util.Vector;
 
 import com.destroystokyo.paper.antixray.ChunkPacketBlockController;
@@ -17,12 +17,12 @@ import com.vanillage.raytraceantixray.data.ChunkBlocks;
 import com.vanillage.raytraceantixray.data.PlayerData;
 import com.vanillage.raytraceantixray.util.BlockIterator;
 
-import net.minecraft.server.v1_16_R3.BlockPosition;
-import net.minecraft.server.v1_16_R3.Blocks;
-import net.minecraft.server.v1_16_R3.Chunk;
-import net.minecraft.server.v1_16_R3.ChunkCoordIntPair;
-import net.minecraft.server.v1_16_R3.ChunkSection;
-import net.minecraft.server.v1_16_R3.IBlockData;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.LevelChunkSection;
 
 public final class RayTraceRunnable implements Runnable, Callable<Object> {
     private static final IntArrayConsumer INCREASE_X = c -> c[0]++;
@@ -76,9 +76,9 @@ public final class RayTraceRunnable implements Runnable, Callable<Object> {
             Vector vector = location.toVector();
             Vector direction = location.getDirection();
 
-            for (Entry<ChunkCoordIntPair, ChunkBlocks> chunkEntry : playerData.getChunks().entrySet()) {
+            for (Entry<ChunkPos, ChunkBlocks> chunkEntry : playerData.getChunks().entrySet()) {
                 ChunkBlocks chunkBlocks = chunkEntry.getValue();
-                Chunk chunk = chunkBlocks.getChunk();
+                LevelChunk chunk = chunkBlocks.getChunk();
 
                 if (chunk == null) {
                     playerData.getChunks().remove(chunkEntry.getKey(), chunkBlocks);
@@ -89,11 +89,11 @@ public final class RayTraceRunnable implements Runnable, Callable<Object> {
                     continue;
                 }
 
-                Iterator<? extends BlockPosition> iterator = chunkBlocks.getBlocks().iterator();
+                Iterator<? extends BlockPos> iterator = chunkBlocks.getBlocks().iterator();
 
                 while (iterator.hasNext()) {
-                    BlockPosition block = iterator.next();
-                    block = new BlockPosition((chunk.locX << 4) + block.getX(), block.getY(), (chunk.locZ << 4) + block.getZ());
+                    BlockPos block = iterator.next();
+                    block = new BlockPos((chunk.locX << 4) + block.getX(), block.getY(), (chunk.locZ << 4) + block.getZ());
                     Vector blockCenter = new Vector(block.getX() + 0.5, block.getY() + 0.5, block.getZ() + 0.5);
                     Vector difference = vector.clone().subtract(blockCenter);
 
@@ -101,51 +101,51 @@ public final class RayTraceRunnable implements Runnable, Callable<Object> {
                         continue;
                     }
 
-                    Iterator<BlockPosition> blockIterator = new BlockIterator(blockCenter, vector);
+                    Iterator<BlockPos> blockIterator = new BlockIterator(blockCenter, vector);
                     boolean update = true;
 
                     while (blockIterator.hasNext()) {
-                        BlockPosition rayBlock = blockIterator.next();
-                        ChunkCoordIntPair chunkCoordIntPair = new ChunkCoordIntPair(rayBlock);
-                        ChunkBlocks rayChunkBlocks = playerData.getChunks().get(chunkCoordIntPair);
+                        BlockPos rayBlock = blockIterator.next();
+                        ChunkPos chunkPos = new ChunkPos(rayBlock);
+                        ChunkBlocks rayChunkBlocks = playerData.getChunks().get(chunkPos);
 
                         if (rayChunkBlocks == null) {
                             update = false;
                             break;
                         }
 
-                        Chunk rayChunk = rayChunkBlocks.getChunk();
+                        LevelChunk rayChunk = rayChunkBlocks.getChunk();
 
                         if (rayChunk == null) {
-                            playerData.getChunks().remove(chunkCoordIntPair, rayChunkBlocks);
+                            playerData.getChunks().remove(chunkPos, rayChunkBlocks);
                             update = false;
                             break;
                         }
 
                         int sectionY = rayBlock.getY() >> 4;
 
-                        if (sectionY < 0 || sectionY > 15) {
+                        if (sectionY < rayChunk.getMinSection() || sectionY > rayChunk.getMaxSection() - 1) {
                             continue;
                         }
 
-                        ChunkSection section = rayChunk.getSections()[sectionY];
+                        LevelChunkSection section = rayChunk.getSections()[sectionY - rayChunk.getMinSection()];
 
                         if (section == null) {
                             continue;
                         }
 
-                        IBlockData blockData;
+                        BlockState blockState;
 
-                        // synchronized (section.getBlocks()) {
+                        // synchronized (section.getStates()) {
                         //     try {
-                        //         section.getBlocks().a();
-                                blockData = section.getType(rayBlock.getX() & 15, rayBlock.getY() & 15, rayBlock.getZ() & 15);
+                        //         section.getStates().acquire();
+                                blockState = section.getBlockState(rayBlock.getX() & 15, rayBlock.getY() & 15, rayBlock.getZ() & 15);
                         //     } finally {
-                        //         section.getBlocks().b();
+                        //         section.getStates().release();
                         //     }
                         // }
 
-                        if (solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(blockData)] && checkSurroundingBlocks(block.getX(), block.getY(), block.getZ(), rayBlock.getX(), rayBlock.getY(), rayBlock.getZ(), difference, section, chunkCoordIntPair.x, sectionY, chunkCoordIntPair.z, playerData, solidGlobal)) {
+                        if (solidGlobal[LevelChunkSection.GLOBAL_BLOCKSTATE_PALETTE.idFor(blockState)] && checkSurroundingBlocks(block.getX(), block.getY(), block.getZ(), rayBlock.getX(), rayBlock.getY(), rayBlock.getZ(), difference, section, chunkPos.x, sectionY, chunkPos.z, playerData, solidGlobal)) {
                             update = false;
                             break;
                         }
@@ -160,52 +160,52 @@ public final class RayTraceRunnable implements Runnable, Callable<Object> {
         }
     }
 
-    private IBlockData getBlockData(int x, int y, int z, ChunkSection expectedSection, int expectedChunkX, int expectedSectionY, int expectedChunkZ, PlayerData playerData) {
+    private BlockState getBlockData(int x, int y, int z, LevelChunkSection expectedSection, int expectedChunkX, int expectedSectionY, int expectedChunkZ, PlayerData playerData) {
         int chunkX = x >> 4;
         int sectionY = y >> 4;
         int chunkZ = z >> 4;
 
         if (expectedChunkX != chunkX || expectedSectionY != sectionY || expectedChunkZ != chunkZ) {
-            ChunkCoordIntPair chunkCoordIntPair = new ChunkCoordIntPair(chunkX, chunkZ);
-            ChunkBlocks chunkBlocks = playerData.getChunks().get(chunkCoordIntPair);
+            ChunkPos chunkPos = new ChunkPos(chunkX, chunkZ);
+            ChunkBlocks chunkBlocks = playerData.getChunks().get(chunkPos);
 
             if (chunkBlocks == null) {
                 return null;
             }
 
-            Chunk chunk = chunkBlocks.getChunk();
+            LevelChunk chunk = chunkBlocks.getChunk();
 
             if (chunk == null) {
-                playerData.getChunks().remove(chunkCoordIntPair, chunkBlocks);
+                playerData.getChunks().remove(chunkPos, chunkBlocks);
                 return null;
             }
 
-            if (sectionY < 0 || sectionY > 15) {
-                return Blocks.AIR.getBlockData();
+            if (sectionY < chunk.getMinSection() || sectionY > chunk.getMaxSection() - 1) {
+                return Blocks.AIR.defaultBlockState();
             }
 
-            expectedSection = chunk.getSections()[sectionY];
+            expectedSection = chunk.getSections()[sectionY - chunk.getMinSection()];
 
             if (expectedSection == null) {
-                return Blocks.AIR.getBlockData();
+                return Blocks.AIR.defaultBlockState();
             }
         }
 
-        IBlockData blockData;
+        BlockState blockState;
 
-        // synchronized (expectedSection.getBlocks()) {
+        // synchronized (expectedSection.getStates()) {
         //     try {
-        //         expectedSection.getBlocks().a();
-                blockData = expectedSection.getType(x & 15, y & 15, z & 15);
+        //         expectedSection.getStates().acquire();
+                blockState = expectedSection.getBlockState(x & 15, y & 15, z & 15);
         //     } finally {
-        //         expectedSection.getBlocks().b();
+        //         expectedSection.getStates().release();
         //     }
         // }
 
-        return blockData;
+        return blockState;
     }
 
-    private boolean checkSurroundingBlocks(int blockX, int blockY, int blockZ, int rayBlockX, int rayBlockY, int rayBlockZ, Vector direction, ChunkSection expectedSection, int expectedChunkX, int expectedSectionY, int expectedChunkZ, PlayerData playerData, boolean[] solidGlobal) {
+    private boolean checkSurroundingBlocks(int blockX, int blockY, int blockZ, int rayBlockX, int rayBlockY, int rayBlockZ, Vector direction, LevelChunkSection expectedSection, int expectedChunkX, int expectedSectionY, int expectedChunkZ, PlayerData playerData, boolean[] solidGlobal) {
         IntArrayConsumer[] centerToTorus;
         IntArrayConsumer increase;
         IntArrayConsumer decrease;
@@ -264,13 +264,13 @@ public final class RayTraceRunnable implements Runnable, Callable<Object> {
 
         for (int step = 0; step < centerToTorus.length; step++) {
             centerToTorus[step].accept(ref);
-            IBlockData blockData = getBlockData(ref[0], ref[1], ref[2], expectedSection, expectedChunkX, expectedSectionY, expectedChunkZ, playerData);
+            BlockState blockState = getBlockData(ref[0], ref[1], ref[2], expectedSection, expectedChunkX, expectedSectionY, expectedChunkZ, playerData);
 
-            if (blockData == null) {
+            if (blockState == null) {
                 return true;
             }
 
-            if (solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(blockData)]) {
+            if (solidGlobal[LevelChunkSection.GLOBAL_BLOCKSTATE_PALETTE.idFor(blockState)]) {
                 continue;
             }
 
@@ -280,13 +280,13 @@ public final class RayTraceRunnable implements Runnable, Callable<Object> {
                 return false;
             }
 
-            blockData = getBlockData(ref[0], ref[1], ref[2], expectedSection, expectedChunkX, expectedSectionY, expectedChunkZ, playerData);
+            blockState = getBlockData(ref[0], ref[1], ref[2], expectedSection, expectedChunkX, expectedSectionY, expectedChunkZ, playerData);
 
-            if (blockData == null) {
+            if (blockState == null) {
                 return true;
             }
 
-            if (!solidGlobal[ChunkSection.GLOBAL_PALETTE.getOrCreateIdFor(blockData)]) {
+            if (!solidGlobal[LevelChunkSection.GLOBAL_BLOCKSTATE_PALETTE.idFor(blockState)]) {
                 return false;
             }
 
