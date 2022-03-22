@@ -7,7 +7,7 @@ import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 
 import org.bukkit.Location;
-import org.bukkit.craftbukkit.v1_17_R1.CraftWorld;
+import org.bukkit.craftbukkit.v1_18_R2.CraftWorld;
 import org.bukkit.util.Vector;
 
 import com.destroystokyo.paper.antixray.ChunkPacketBlockController;
@@ -23,6 +23,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.chunk.MissingPaletteEntryException;
 
 public final class RayTraceRunnable implements Runnable, Callable<Object> {
     private static final IntArrayConsumer INCREASE_X = c -> c[0]++;
@@ -130,7 +131,7 @@ public final class RayTraceRunnable implements Runnable, Callable<Object> {
 
                         LevelChunkSection section = rayChunk.getSections()[sectionY - rayChunk.getMinSection()];
 
-                        if (section == null) {
+                        if (section == null || section.hasOnlyAir()) { // Sections aren't null anymore.
                             continue;
                         }
 
@@ -139,13 +140,17 @@ public final class RayTraceRunnable implements Runnable, Callable<Object> {
                         // synchronized (section.getStates()) {
                         //     try {
                         //         section.getStates().acquire();
-                                blockState = section.getBlockState(rayBlock.getX() & 15, rayBlock.getY() & 15, rayBlock.getZ() & 15);
+                                try {
+                                    blockState = section.getBlockState(rayBlock.getX() & 15, rayBlock.getY() & 15, rayBlock.getZ() & 15);
+                                } catch (MissingPaletteEntryException e) {
+                                    blockState = Blocks.AIR.defaultBlockState();
+                                }
                         //     } finally {
                         //         section.getStates().release();
                         //     }
                         // }
 
-                        if (solidGlobal[LevelChunkSection.GLOBAL_BLOCKSTATE_PALETTE.idFor(blockState)] && checkSurroundingBlocks(block.getX(), block.getY(), block.getZ(), rayBlock.getX(), rayBlock.getY(), rayBlock.getZ(), difference, section, chunkPos.x, sectionY, chunkPos.z, playerData, solidGlobal)) {
+                        if (solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(blockState)] && checkSurroundingBlocks(block.getX(), block.getY(), block.getZ(), rayBlock.getX(), rayBlock.getY(), rayBlock.getZ(), difference, section, chunkPos.x, sectionY, chunkPos.z, playerData, solidGlobal)) {
                             update = false;
                             break;
                         }
@@ -186,7 +191,7 @@ public final class RayTraceRunnable implements Runnable, Callable<Object> {
 
             expectedSection = chunk.getSections()[sectionY - chunk.getMinSection()];
 
-            if (expectedSection == null) {
+            if (expectedSection == null || expectedSection.hasOnlyAir()) { // Sections aren't null anymore.
                 return Blocks.AIR.defaultBlockState();
             }
         }
@@ -196,7 +201,11 @@ public final class RayTraceRunnable implements Runnable, Callable<Object> {
         // synchronized (expectedSection.getStates()) {
         //     try {
         //         expectedSection.getStates().acquire();
-                blockState = expectedSection.getBlockState(x & 15, y & 15, z & 15);
+                try {
+                    blockState = expectedSection.getBlockState(x & 15, y & 15, z & 15);
+                } catch (MissingPaletteEntryException e) {
+                    blockState = Blocks.AIR.defaultBlockState();
+                }
         //     } finally {
         //         expectedSection.getStates().release();
         //     }
@@ -270,7 +279,7 @@ public final class RayTraceRunnable implements Runnable, Callable<Object> {
                 return true;
             }
 
-            if (solidGlobal[LevelChunkSection.GLOBAL_BLOCKSTATE_PALETTE.idFor(blockState)]) {
+            if (solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(blockState)]) {
                 continue;
             }
 
@@ -286,7 +295,7 @@ public final class RayTraceRunnable implements Runnable, Callable<Object> {
                 return true;
             }
 
-            if (!solidGlobal[LevelChunkSection.GLOBAL_BLOCKSTATE_PALETTE.idFor(blockState)]) {
+            if (!solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(blockState)]) {
                 return false;
             }
 

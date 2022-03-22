@@ -13,8 +13,8 @@ import java.util.concurrent.TimeUnit;
 
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.craftbukkit.v1_17_R1.CraftWorld;
-import org.bukkit.craftbukkit.v1_17_R1.entity.CraftEntity;
+import org.bukkit.craftbukkit.v1_18_R2.CraftWorld;
+import org.bukkit.craftbukkit.v1_18_R2.entity.CraftEntity;
 import org.bukkit.entity.Entity;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
@@ -31,7 +31,7 @@ import com.vanillage.raytraceantixray.listeners.WorldListener;
 import com.vanillage.raytraceantixray.tasks.ScheduledRayTraceRunnable;
 import com.vanillage.raytraceantixray.tasks.UpdateBukkitRunnable;
 
-import net.minecraft.network.protocol.game.ClientboundLevelChunkPacket;
+import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -39,7 +39,7 @@ import net.minecraft.world.phys.Vec3;
 
 public final class RayTraceAntiXray extends JavaPlugin {
     private volatile boolean running = false;
-    private final Map<ClientboundLevelChunkPacket, ChunkBlocks> packetChunkBlocksCache = new MapMaker().weakKeys().makeMap();
+    private final Map<ClientboundLevelChunkWithLightPacket, ChunkBlocks> packetChunkBlocksCache = new MapMaker().weakKeys().makeMap();
     private final Map<UUID, PlayerData> playerData = new ConcurrentHashMap<>();
     private ExecutorService executorService;
     private ScheduledExecutorService scheduledExecutorService;
@@ -107,7 +107,7 @@ public final class RayTraceAntiXray extends JavaPlugin {
         return running;
     }
 
-    public Map<ClientboundLevelChunkPacket, ChunkBlocks> getPacketChunkBlocksCache() {
+    public Map<ClientboundLevelChunkWithLightPacket, ChunkBlocks> getPacketChunkBlocksCache() {
         return packetChunkBlocksCache;
     }
 

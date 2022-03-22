@@ -7,7 +7,7 @@
   <name>Libs</name>
   <description>Libs.</description>
   <properties>
-    <minecraftVersion>1.17.1</minecraftVersion>
+    <minecraftVersion>1.18.2</minecraftVersion>
     <paperVersion>${minecraftVersion}-R0.1-SNAPSHOT</paperVersion>
   </properties>
   <repositories>
@@ -58,7 +58,6 @@
             <configuration>
               <executable>java</executable>
               <arguments>
-                <argument>-Dpaperclip.install=true</argument>
                 <argument>-Dpaperclip.patchonly=true</argument>
                 <argument>-jar</argument>
                 <argument>${project.build.directory}/data/paperclip-mojang+yarn.jar</argument>
@@ -79,10 +78,11 @@
               <goal>install-file</goal>
             </goals>
             <configuration>
-              <file>${basedir}/cache/patched_${minecraftVersion}.jar</file>
+              <file>${basedir}/versions/${minecraftVersion}/paper-${minecraftVersion}.jar</file>
               <groupId>io.papermc.paper</groupId>
-              <artifactId>paper</artifactId>
+              <artifactId>paper-server</artifactId>
               <version>${paperVersion}</version>
+              <classifier>mojang-mapped</classifier>
               <packaging>jar</packaging>
               <generatePom>true</generatePom>
             </configuration>

@@ -3,7 +3,7 @@
   <parent>
     <groupId>com.vanillage.raytraceantixray</groupId>
     <artifactId>raytraceantixray-parent</artifactId>
-    <version>1.5.0</version>
+    <version>1.6.0</version>
   </parent>
   <artifactId>raytraceantixray</artifactId>
   <name>RayTraceAntiXray</name>
@@ -23,6 +23,10 @@
       <url>https://maven.fabricmc.net/</url>
     </repository>
     <repository>
+      <id>minecraft-libraries</id>
+      <url>https://libraries.minecraft.net/</url>
+    </repository>
+    <repository>
       <id>dmulloy2-repo</id>
       <url>https://repo.dmulloy2.net/repository/public/</url>
     </repository>
@@ -36,8 +40,21 @@
     </dependency>
     <dependency>
       <groupId>io.papermc.paper</groupId>
-      <artifactId>paper</artifactId>
+      <artifactId>paper-mojangapi</artifactId>
       <version>${paperVersion}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.papermc.paper</groupId>
+      <artifactId>paper-server</artifactId>
+      <version>${paperVersion}</version>
+      <classifier>mojang-mapped</classifier>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.mojang</groupId>
+      <artifactId>datafixerupper</artifactId>
+      <version>4.1.27</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -105,7 +122,7 @@
                 <argument>${basedir}/../Libs/target/data/mojang+yarn-spigot-reobf.tiny</argument>
                 <argument>mojang+yarn</argument>
                 <argument>spigot</argument>
-                <argument>${basedir}/../Libs/cache/patched_${minecraftVersion}.jar</argument>
+                <argument>${basedir}/../Libs/versions/${minecraftVersion}/paper-${minecraftVersion}.jar</argument>
               </arguments>
             </configuration>
           </execution>
