@@ -23,6 +23,7 @@ import com.comphenix.protocol.ProtocolLibrary;
 import com.destroystokyo.paper.antixray.ChunkPacketBlockControllerAntiXray.EngineMode;
 import com.google.common.collect.MapMaker;
 import com.vanillage.raytraceantixray.antixray.ChunkPacketBlockControllerAntiXray;
+import com.vanillage.raytraceantixray.commands.RayTraceAntiXrayTabExecutor;
 import com.vanillage.raytraceantixray.data.ChunkBlocks;
 import com.vanillage.raytraceantixray.data.PlayerData;
 import com.vanillage.raytraceantixray.listeners.PacketListener;
@@ -39,6 +40,7 @@ import net.minecraft.world.phys.Vec3;
 
 public final class RayTraceAntiXray extends JavaPlugin {
     private volatile boolean running = false;
+    private volatile boolean timings = false;
     private final Map<ClientboundLevelChunkWithLightPacket, ChunkBlocks> packetChunkBlocksCache = new MapMaker().weakKeys().makeMap();
     private final Map<UUID, PlayerData> playerData = new ConcurrentHashMap<>();
     private ExecutorService executorService;
@@ -61,6 +63,7 @@ public final class RayTraceAntiXray extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
         ProtocolLibrary.getProtocolManager().addPacketListener(new PacketListener(this));
         // registerCommands();
+        getCommand("raytraceantixray").setExecutor(new RayTraceAntiXrayTabExecutor(this));
         getLogger().info(getDescription().getFullName() + " enabled");
     }
 
@@ -105,6 +108,14 @@ public final class RayTraceAntiXray extends JavaPlugin {
 
     public boolean isRunning() {
         return running;
+    }
+
+    public boolean isTimings() {
+        return timings;
+    }
+
+    public void setTimings(boolean timings) {
+        this.timings = timings;
     }
 
     public Map<ClientboundLevelChunkWithLightPacket, ChunkBlocks> getPacketChunkBlocksCache() {
