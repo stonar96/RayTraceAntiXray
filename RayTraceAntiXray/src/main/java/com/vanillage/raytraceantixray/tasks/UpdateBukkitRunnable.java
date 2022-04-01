@@ -1,8 +1,6 @@
 package com.vanillage.raytraceantixray.tasks;
 
 import java.util.Queue;
-import java.util.UUID;
-import java.util.Map.Entry;
 
 import org.bukkit.craftbukkit.v1_18_R2.CraftWorld;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -24,8 +22,7 @@ public final class UpdateBukkitRunnable extends BukkitRunnable {
 
     @Override
     public void run() {
-        for (Entry<UUID, PlayerData> entry : plugin.getPlayerData().entrySet()) {
-            PlayerData playerData = entry.getValue();
+        for (PlayerData playerData : plugin.getPlayerData().values()) {
             Level level = ((CraftWorld) playerData.getLocations().get(0).getWorld()).getHandle();
             ChunkPacketBlockController chunkPacketBlockController = level.chunkPacketBlockController;
 

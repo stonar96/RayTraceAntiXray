@@ -48,7 +48,7 @@ public final class RayTraceAntiXray extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        // saveResource("README.txt", false);
+        saveResource("README.txt", false);
         saveDefaultConfig();
         getConfig().options().copyDefaults(true);
         // saveConfig();
@@ -154,9 +154,9 @@ public final class RayTraceAntiXray extends JavaPlugin {
             float edgeX = (float) ((i & 1) * 2 - 1);
             float edgeY = (float) ((i >> 1 & 1) * 2 - 1);
             float edgeZ = (float) ((i >> 2 & 1) * 2 - 1);
-            edgeX = edgeX * 0.1f;
-            edgeY = edgeY * 0.1f;
-            edgeZ = edgeZ * 0.1f;
+            edgeX *= 0.1f;
+            edgeY *= 0.1f;
+            edgeZ *= 0.1f;
             Vec3 edge = position.add(edgeX, edgeY, edgeZ);
             Vec3 edgeMoved = new Vec3(position.x - direction.getX() * maxZoom + (double) edgeX + (double) edgeZ, position.y - direction.getY() * maxZoom + (double) edgeY, position.z - direction.getZ() * maxZoom + (double) edgeZ);
             BlockHitResult result = ((CraftWorld) location.getWorld()).getHandle().clip(new ClipContext(edge, edgeMoved, ClipContext.Block.VISUAL, ClipContext.Fluid.NONE, ((CraftEntity) entity).getHandle()));
