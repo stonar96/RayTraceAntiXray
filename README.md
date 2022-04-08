@@ -2,7 +2,7 @@
 Paper plugin for server-side async multithreaded ray tracing to hide ores that are exposed to air using Paper Anti-Xray engine-mode 1.
 ## How to install
 * Download and install [Paper](https://papermc.io/downloads) 1.18.2.
-* Enable [Paper Anti-Xray](https://gist.github.com/stonar96/ba18568bd91e5afd590e8038d14e245e) in engine-mode 1.
+* Enable [Paper Anti-Xray](https://docs.papermc.io/paper/anti-xray) using `engine-mode: 1`.
 * Download and install [ProtocolLib](https://www.spigotmc.org/resources/protocollib.1997/).
 * Download and install [RayTraceAntiXray](https://github.com/stonar96/RayTraceAntiXray/releases).
 * Configure RayTraceAntiXray by editing the file plugins/RayTraceAntiXray/[config.yml](RayTraceAntiXray/src/main/resources/config.yml).

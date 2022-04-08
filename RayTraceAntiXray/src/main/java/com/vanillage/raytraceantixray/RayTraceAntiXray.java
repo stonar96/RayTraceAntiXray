@@ -4,11 +4,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Timer;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.bukkit.Location;
@@ -29,7 +29,7 @@ import com.vanillage.raytraceantixray.data.PlayerData;
 import com.vanillage.raytraceantixray.listeners.PacketListener;
 import com.vanillage.raytraceantixray.listeners.PlayerListener;
 import com.vanillage.raytraceantixray.listeners.WorldListener;
-import com.vanillage.raytraceantixray.tasks.ScheduledRayTraceRunnable;
+import com.vanillage.raytraceantixray.tasks.RayTraceTimerTask;
 import com.vanillage.raytraceantixray.tasks.UpdateBukkitRunnable;
 
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
@@ -44,7 +44,7 @@ public final class RayTraceAntiXray extends JavaPlugin {
     private final Map<ClientboundLevelChunkWithLightPacket, ChunkBlocks> packetChunkBlocksCache = new MapMaker().weakKeys().makeMap();
     private final Map<UUID, PlayerData> playerData = new ConcurrentHashMap<>();
     private ExecutorService executorService;
-    private ScheduledExecutorService scheduledExecutorService;
+    private Timer timer;
 
     @Override
     public void onEnable() {
@@ -55,8 +55,8 @@ public final class RayTraceAntiXray extends JavaPlugin {
         // Initialize stuff.
         running = true;
         executorService = Executors.newFixedThreadPool(Math.max(getConfig().getInt("settings.anti-xray.ray-trace-threads"), 1));
-        scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-        scheduledExecutorService.scheduleAtFixedRate(new ScheduledRayTraceRunnable(this), 0L, Math.max(getConfig().getLong("settings.anti-xray.ms-per-ray-trace-tick"), 1L), TimeUnit.MILLISECONDS);
+        timer = new Timer(true);
+        timer.schedule(new RayTraceTimerTask(this), 0L, Math.max(getConfig().getLong("settings.anti-xray.ms-per-ray-trace-tick"), 1L));
         new UpdateBukkitRunnable(this).runTaskTimer(this, 0L, Math.max(getConfig().getLong("settings.anti-xray.update-ticks"), 1L));
         // Register events.
         getServer().getPluginManager().registerEvents(new WorldListener(this), this);
@@ -73,15 +73,7 @@ public final class RayTraceAntiXray extends JavaPlugin {
         // Cleanup stuff.
         ProtocolLibrary.getProtocolManager().removePacketListeners(this);
         running = false;
-        scheduledExecutorService.shutdownNow();
-
-        try {
-            scheduledExecutorService.awaitTermination(1000L, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            e.printStackTrace();
-        }
-
+        timer.cancel();
         executorService.shutdownNow();
 
         try {

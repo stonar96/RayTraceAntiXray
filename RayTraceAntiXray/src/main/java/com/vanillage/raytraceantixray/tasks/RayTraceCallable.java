@@ -25,7 +25,7 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.MissingPaletteEntryException;
 
-public final class RayTraceRunnable implements Runnable, Callable<Object> {
+public final class RayTraceCallable implements Callable<Void> {
     private static final IntArrayConsumer INCREASE_X = c -> c[0]++;
     private static final IntArrayConsumer DECREASE_X = c -> c[0]--;
     private static final IntArrayConsumer INCREASE_Y = c -> c[1]++;
@@ -39,25 +39,19 @@ public final class RayTraceRunnable implements Runnable, Callable<Object> {
     private final RayTraceAntiXray plugin;
     private final PlayerData playerData;
 
-    public RayTraceRunnable(RayTraceAntiXray plugin, PlayerData playerData) {
+    public RayTraceCallable(RayTraceAntiXray plugin, PlayerData playerData) {
         this.plugin = plugin;
         this.playerData = playerData;
     }
 
     @Override
-    public Object call() throws Exception {
-        run();
-        return null;
-    }
-
-    @Override
-    public void run() {
+    public Void call() {
         List<? extends Location> locations = playerData.getLocations();
         Location playerLocation = locations.get(0);
         ChunkPacketBlockController chunkPacketBlockController = ((CraftWorld) playerLocation.getWorld()).getHandle().chunkPacketBlockController;
 
         if (!(chunkPacketBlockController instanceof ChunkPacketBlockControllerAntiXray)) {
-            return;
+            return null;
         }
 
         boolean[] solidGlobal = ((ChunkPacketBlockControllerAntiXray) chunkPacketBlockController).solidGlobal;
@@ -163,6 +157,8 @@ public final class RayTraceRunnable implements Runnable, Callable<Object> {
                 }
             }
         }
+
+        return null;
     }
 
     private BlockState getBlockData(int x, int y, int z, LevelChunkSection expectedSection, int expectedChunkX, int expectedSectionY, int expectedChunkZ, PlayerData playerData) {

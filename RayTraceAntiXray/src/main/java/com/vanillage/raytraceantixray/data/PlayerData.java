@@ -12,16 +12,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 
 public final class PlayerData {
-    private final Map<ChunkPos, ChunkBlocks> chunks = new ConcurrentHashMap<>();
     private volatile List<? extends Location> locations;
+    private final Map<ChunkPos, ChunkBlocks> chunks = new ConcurrentHashMap<>();
     private final Queue<BlockPos> result = new ConcurrentLinkedQueue<>();
 
     public PlayerData(List<? extends Location> locations) {
         this.locations = locations;
-    }
-
-    public Map<ChunkPos, ChunkBlocks> getChunks() {
-        return chunks;
     }
 
     public List<? extends Location> getLocations() {
@@ -30,6 +26,10 @@ public final class PlayerData {
 
     public void setLocations(List<? extends Location> locations) {
         this.locations = locations;
+    }
+
+    public Map<ChunkPos, ChunkBlocks> getChunks() {
+        return chunks;
     }
 
     public Queue<BlockPos> getResult() {
