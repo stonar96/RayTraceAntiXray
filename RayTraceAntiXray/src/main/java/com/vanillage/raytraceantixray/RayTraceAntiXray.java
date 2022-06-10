@@ -1,5 +1,6 @@
 package com.vanillage.raytraceantixray;
 
+import java.io.File;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -46,7 +47,9 @@ public final class RayTraceAntiXray extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        saveResource("README.txt", false);
+        if (!new File(getDataFolder(), "README.txt").exists()) {
+            saveResource("README.txt", false);
+        }
         saveDefaultConfig();
         getConfig().options().copyDefaults(true);
         // saveConfig();
