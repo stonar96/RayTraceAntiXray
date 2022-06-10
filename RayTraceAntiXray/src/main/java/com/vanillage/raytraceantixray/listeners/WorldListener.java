@@ -14,6 +14,7 @@ import com.vanillage.raytraceantixray.antixray.ChunkPacketBlockControllerAntiXra
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.Level;
+import org.bukkit.event.world.WorldUnloadEvent;
 import sun.misc.Unsafe;
 
 public final class WorldListener implements Listener {
@@ -46,4 +47,10 @@ public final class WorldListener implements Listener {
             }
         }
     }
+
+    @EventHandler
+    public void onWorldUnload(WorldUnloadEvent e) {
+        plugin.getThirdPersonByWorldId().remove(e.getWorld().getUID());
+    }
+
 }
