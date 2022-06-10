@@ -11,7 +11,7 @@
     <module>RayTraceAntiXray</module>
   </modules>
   <properties>
-    <minecraftVersion>1.18.2</minecraftVersion>
+    <minecraftVersion>1.19</minecraftVersion>
     <paperVersion>${minecraftVersion}-R0.1-SNAPSHOT</paperVersion>
   </properties>
 </project>

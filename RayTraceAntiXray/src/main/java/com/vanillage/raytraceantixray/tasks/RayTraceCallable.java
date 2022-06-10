@@ -7,7 +7,7 @@ import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 
 import org.bukkit.Location;
-import org.bukkit.craftbukkit.v1_18_R2.CraftWorld;
+import org.bukkit.craftbukkit.v1_19_R1.CraftWorld;
 import org.bukkit.util.Vector;
 
 import com.destroystokyo.paper.antixray.ChunkPacketBlockController;

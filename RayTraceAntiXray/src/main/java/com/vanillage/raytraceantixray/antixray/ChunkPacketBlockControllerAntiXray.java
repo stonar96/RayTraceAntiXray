@@ -1,6 +1,5 @@
 package com.vanillage.raytraceantixray.antixray;
 
-import com.destroystokyo.paper.PaperWorldConfig;
 import com.destroystokyo.paper.antixray.BitStorageReader;
 import com.destroystokyo.paper.antixray.BitStorageWriter;
 import com.destroystokyo.paper.antixray.ChunkPacketBlockController;
@@ -9,6 +8,7 @@ import com.destroystokyo.paper.antixray.ChunkPacketInfo;
 import com.vanillage.raytraceantixray.RayTraceAntiXray;
 import com.vanillage.raytraceantixray.data.ChunkBlocks;
 
+import io.papermc.paper.configuration.WorldConfiguration;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Registry;
@@ -65,16 +65,16 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
     public ChunkPacketBlockControllerAntiXray(RayTraceAntiXray plugin, int maxRayTraceBlockCountPerChunk, Iterable<? extends String> toTrace, Level level, Executor executor) {
         this.plugin = plugin;
         this.executor = executor;
-        PaperWorldConfig paperWorldConfig = level.paperConfig;
-        engineMode = paperWorldConfig.engineMode;
-        maxBlockHeight = paperWorldConfig.maxBlockHeight >> 4 << 4;
-        updateRadius = paperWorldConfig.updateRadius;
-        usePermission = paperWorldConfig.usePermission;
+        WorldConfiguration.AntiCheat.AntiXRay xrayConfig = level.paperConfig().anticheat.antiXray;
+        engineMode = xrayConfig.engineMode;
+        maxBlockHeight = xrayConfig.maxBlockHeight >> 4 << 4;
+        updateRadius = xrayConfig.updateRadius;
+        usePermission = xrayConfig.usePermission;
         this.maxRayTraceBlockCountPerChunk = maxRayTraceBlockCountPerChunk;
         List<String> toObfuscate;
 
         if (engineMode == EngineMode.HIDE) {
-            toObfuscate = paperWorldConfig.hiddenBlocks;
+            toObfuscate = xrayConfig.hiddenBlocks;
             presetBlockStates = null;
             presetBlockStatesFull = null;
             presetBlockStatesStone = new BlockState[]{Blocks.STONE.defaultBlockState()};
@@ -87,10 +87,10 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             presetBlockStateBitsNetherrackGlobal = new int[]{GLOBAL_BLOCKSTATE_PALETTE.idFor(Blocks.NETHERRACK.defaultBlockState())};
             presetBlockStateBitsEndStoneGlobal = new int[]{GLOBAL_BLOCKSTATE_PALETTE.idFor(Blocks.END_STONE.defaultBlockState())};
         } else {
-            toObfuscate = new ArrayList<>(paperWorldConfig.replacementBlocks);
+            toObfuscate = new ArrayList<>(xrayConfig.replacementBlocks);
             List<BlockState> presetBlockStateList = new LinkedList<>();
 
-            for (String id : paperWorldConfig.hiddenBlocks) {
+            for (String id : xrayConfig.hiddenBlocks) {
                 Block block = Registry.BLOCK.getOptional(new ResourceLocation(id)).orElse(null);
 
                 if (block != null && !(block instanceof EntityBlock)) {
@@ -161,7 +161,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
 
             if (blockState != null) {
                 solidGlobal[i] = blockState.isRedstoneConductor(emptyChunk, zeroPos)
-                    && blockState.getBlock() != Blocks.SPAWNER && blockState.getBlock() != Blocks.BARRIER && blockState.getBlock() != Blocks.SHULKER_BOX && blockState.getBlock() != Blocks.SLIME_BLOCK || paperWorldConfig.lavaObscures && blockState == Blocks.LAVA.defaultBlockState();
+                    && blockState.getBlock() != Blocks.SPAWNER && blockState.getBlock() != Blocks.BARRIER && blockState.getBlock() != Blocks.SHULKER_BOX && blockState.getBlock() != Blocks.SLIME_BLOCK || xrayConfig.lavaObscures && blockState == Blocks.LAVA.defaultBlockState();
                 // Comparing blockState == Blocks.LAVA.defaultBlockState() instead of blockState.getBlock() == Blocks.LAVA ensures that only "stationary lava" is used
                 // shulker box checks TE.
             }

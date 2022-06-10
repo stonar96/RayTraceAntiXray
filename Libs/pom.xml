@@ -7,15 +7,9 @@
   <name>Libs</name>
   <description>Libs.</description>
   <properties>
-    <minecraftVersion>1.18.2</minecraftVersion>
+    <minecraftVersion>1.19</minecraftVersion>
     <paperVersion>${minecraftVersion}-R0.1-SNAPSHOT</paperVersion>
   </properties>
-  <repositories>
-    <repository>
-      <id>papermc</id>
-      <url>https://repo.papermc.io/repository/maven-public/</url>
-    </repository>
-  </repositories>
   <build>
     <plugins>
       <plugin>

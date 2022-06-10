@@ -2,9 +2,9 @@
 # 
 # settings:
 #   anti-xray:
-#     update-ticks: 1                           # Specifies the time period in Minecraft ticks for sending block updates.
+#     update-ticks: 4                           # Specifies the time period in Minecraft ticks for sending block updates.
 #     ms-per-ray-trace-tick: 50                 # Specifies the target time per ray trace tick in milliseconds.
-#     ray-trace-threads: 2                      # Specifies the number of threads that are used for ray tracing.
+#     ray-trace-threads: 4                      # Specifies the number of threads that are used for ray tracing.
 # world-settings:
 #   default:                                    # The values of the 'default' section apply to all worlds, that don't have the values specified.
 #     anti-xray:
@@ -13,17 +13,20 @@
 #       ray-trace-distance: 80.0                # Maximum distance between a player (eye location) and a block (center) for ray tracing.
 #       max-ray-trace-block-count-per-chunk: 30 # The maximum number of ray traced blocks per chunk. Counting starts at the bottom of the world and increases upwards.
 #       ray-trace-blocks:                       # Specifies the blocks that will be obfuscated and ray traced. The hidden-blocks specified in the paper.yml file will only be obfuscated (but not ray traced when exposed to transparent blocks). If this list is empty, the hidden-blocks specified in the paper.yml file will be used.
-#       - diamond_ore
-#       - emerald_ore
+#        - diamond_ore
+#        - deepslate_diamond_ore
+#        - emerald_ore
+#        - deepslate_emerald_ore
+#        - ancient_debris
 #   lobby:                                      # Example section for the world 'lobby'. Inherits the missing values from the 'default' section and overrides the existing values.
 #     anti-xray:
 #       ray-trace: false                        # Disables ray tracing in the world 'lobby'.
 
 settings:
   anti-xray:
-    update-ticks: 1
+    update-ticks: 4
     ms-per-ray-trace-tick: 50
-    ray-trace-threads: 2
+    ray-trace-threads: 4
 world-settings:
   default:
     anti-xray:
@@ -31,4 +34,9 @@ world-settings:
       ray-trace-third-person: false
       ray-trace-distance: 80.0
       max-ray-trace-block-count-per-chunk: 30
-      ray-trace-blocks: []
+      ray-trace-blocks:
+        - diamond_ore
+        - deepslate_diamond_ore
+        - emerald_ore
+        - deepslate_emerald_ore
+        - ancient_debris
