@@ -1,18 +1,15 @@
 package com.vanillage.raytraceantixray;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Timer;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.craftbukkit.v1_19_R1.CraftWorld;
 import org.bukkit.craftbukkit.v1_19_R1.entity.CraftEntity;
 import org.bukkit.entity.Entity;
@@ -39,6 +36,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 public final class RayTraceAntiXray extends JavaPlugin {
+    private ConcurrentHashMap<UUID, Boolean> thirdPersonByWorldId = new ConcurrentHashMap<UUID, Boolean>();
     private volatile boolean running = false;
     private volatile boolean timings = false;
     private final Map<ClientboundLevelChunkWithLightPacket, ChunkBlocks> packetChunkBlocksCache = new MapMaker().weakKeys().makeMap();
@@ -122,12 +120,16 @@ public final class RayTraceAntiXray extends JavaPlugin {
         return executorService;
     }
 
+    public Map<UUID, Boolean> getThirdPersonByWorldId() {
+        return thirdPersonByWorldId;
+    }
+
     public boolean isEnabled(World world) {
         return ((CraftWorld) world).getHandle().paperConfig().anticheat.antiXray.enabled && ((CraftWorld) world).getHandle().paperConfig().anticheat.antiXray.engineMode == EngineMode.HIDE && getConfig().getBoolean("world-settings." + world.getName() + ".anti-xray.ray-trace", getConfig().getBoolean("world-settings.default.anti-xray.ray-trace"));
     }
 
     public List<Location> getLocations(Entity entity, Location location) {
-        if (((CraftWorld) location.getWorld()).getHandle().chunkPacketBlockController instanceof ChunkPacketBlockControllerAntiXray && getConfig().getBoolean("world-settings." + location.getWorld().getName() + ".anti-xray.ray-trace-third-person", getConfig().getBoolean("world-settings.default.anti-xray.ray-trace-third-person"))) {
+        if (((CraftWorld) location.getWorld()).getHandle().chunkPacketBlockController instanceof ChunkPacketBlockControllerAntiXray && thirdPersonByWorldId.get(location.getWorld().getUID())) {
             Vector direction = location.getDirection();
             return Arrays.asList(location, move(entity, location, direction), move(entity, location, direction.multiply(-1.)).setDirection(direction));
         }

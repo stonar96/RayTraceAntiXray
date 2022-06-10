@@ -27,6 +27,11 @@ public final class WorldListener implements Listener {
     @EventHandler
     public void onWorldInit(WorldInitEvent event) {
         if (plugin.isEnabled(event.getWorld())) {
+            plugin.getThirdPersonByWorldId().put(event.getWorld().getUID(), plugin.getConfig().getBoolean("world-settings.default.anti-xray.ray-trace-third-person"));
+            if (plugin.getConfig().contains("world-settings." + event.getWorld().getName() + ".anti-xray.ray-trace-third-person")) {
+                plugin.getThirdPersonByWorldId().put(event.getWorld().getUID(), plugin.getConfig().getBoolean("world-settings." + event.getWorld().getName() + ".anti-xray.ray-trace-third-person"));
+            }
+
             List<String> toTrace = plugin.getConfig().getList("world-settings." + event.getWorld().getName() + ".anti-xray.ray-trace-blocks", plugin.getConfig().getList("world-settings.default.anti-xray.ray-trace-blocks")).stream().filter(o -> o != null).map(String::valueOf).collect(Collectors.toList());
 
             try {
