@@ -1,9 +1,9 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>com.vanillage.raytraceantixray</groupId>
     <artifactId>raytraceantixray-parent</artifactId>
-    <version>1.7.2</version>
+    <version>1.7.3</version>
   </parent>
   <artifactId>raytraceantixray</artifactId>
   <name>RayTraceAntiXray</name>
@@ -16,11 +16,7 @@
   <repositories>
     <repository>
       <id>papermc</id>
-      <url>https://papermc.io/repo/repository/maven-public/</url>
-    </repository>
-    <repository>
-      <id>Fabric</id>
-      <url>https://maven.fabricmc.net/</url>
+      <url>https://repo.papermc.io/repository/maven-public/</url>
     </repository>
     <repository>
       <id>minecraft-libraries</id>
@@ -31,6 +27,12 @@
       <url>https://repo.dmulloy2.net/repository/public/</url>
     </repository>
   </repositories>
+  <pluginRepositories>
+    <pluginRepository>
+      <id>Fabric</id>
+      <url>https://maven.fabricmc.net/</url>
+    </pluginRepository>
+  </pluginRepositories>
   <dependencies>
     <dependency>
       <groupId>io.papermc.paper</groupId>
@@ -75,48 +77,25 @@
         </configuration>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
-        <version>3.3.0</version>
-        <executions>
-          <execution>
-            <id>copy</id>
-            <phase>package</phase>
-            <goals>
-              <goal>copy</goal>
-            </goals>
-            <configuration>
-              <artifactItems>
-                <artifactItem>
-                  <groupId>net.fabricmc</groupId>
-                  <artifactId>tiny-remapper</artifactId>
-                  <version>0.8.1</version>
-                  <classifier>fat</classifier>
-                  <overWrite>true</overWrite>
-                  <outputDirectory>${project.build.directory}</outputDirectory>
-                  <destFileName>tiny-remapper-fat.jar</destFileName>
-                </artifactItem>
-              </artifactItems>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
-        <version>3.0.0</version>
+        <version>3.1.0</version>
         <executions>
           <execution>
-            <id>exec</id>
+            <id>java</id>
             <phase>package</phase>
             <goals>
-              <goal>exec</goal>
+              <goal>java</goal>
             </goals>
             <configuration>
-              <executable>java</executable>
+              <includeProjectDependencies>false</includeProjectDependencies>
+              <includePluginDependencies>true</includePluginDependencies>
+              <executableDependency>
+                <groupId>net.fabricmc</groupId>
+                <artifactId>tiny-remapper</artifactId>
+              </executableDependency>
+              <mainClass>net.fabricmc.tinyremapper.Main</mainClass>
               <arguments>
-                <argument>-jar</argument>
-                <argument>${project.build.directory}/tiny-remapper-fat.jar</argument>
                 <argument>${project.build.directory}/${project.build.finalName}-mojang-mapped.jar</argument>
                 <argument>${project.build.directory}/${project.build.finalName}.jar</argument>
                 <argument>${basedir}/../Libs/target/data/mojang+yarn-spigot-reobf.tiny</argument>
@@ -127,6 +106,14 @@
             </configuration>
           </execution>
         </executions>
+        <dependencies>
+          <dependency>
+            <groupId>net.fabricmc</groupId>
+            <artifactId>tiny-remapper</artifactId>
+            <version>0.8.5</version>
+            <classifier>fat</classifier>
+          </dependency>
+        </dependencies>
       </plugin>
     </plugins>
   </build>
