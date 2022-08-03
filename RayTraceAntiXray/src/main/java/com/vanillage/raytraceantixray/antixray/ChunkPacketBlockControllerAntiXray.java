@@ -3,12 +3,12 @@ package com.vanillage.raytraceantixray.antixray;
 import com.destroystokyo.paper.antixray.BitStorageReader;
 import com.destroystokyo.paper.antixray.BitStorageWriter;
 import com.destroystokyo.paper.antixray.ChunkPacketBlockController;
-import com.destroystokyo.paper.antixray.ChunkPacketBlockControllerAntiXray.EngineMode;
 import com.destroystokyo.paper.antixray.ChunkPacketInfo;
 import com.vanillage.raytraceantixray.RayTraceAntiXray;
 import com.vanillage.raytraceantixray.data.ChunkBlocks;
 
 import io.papermc.paper.configuration.WorldConfiguration;
+import io.papermc.paper.configuration.type.EngineMode;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Registry;
@@ -65,16 +65,16 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
     public ChunkPacketBlockControllerAntiXray(RayTraceAntiXray plugin, int maxRayTraceBlockCountPerChunk, Iterable<? extends String> toTrace, Level level, Executor executor) {
         this.plugin = plugin;
         this.executor = executor;
-        WorldConfiguration.AntiCheat.AntiXRay xrayConfig = level.paperConfig().anticheat.antiXray;
-        engineMode = xrayConfig.engineMode;
-        maxBlockHeight = xrayConfig.maxBlockHeight >> 4 << 4;
-        updateRadius = xrayConfig.updateRadius;
-        usePermission = xrayConfig.usePermission;
+        WorldConfiguration.Anticheat.AntiXray paperWorldConfig = level.paperConfig().anticheat.antiXray;
+        engineMode = paperWorldConfig.engineMode;
+        maxBlockHeight = paperWorldConfig.maxBlockHeight >> 4 << 4;
+        updateRadius = paperWorldConfig.updateRadius;
+        usePermission = paperWorldConfig.usePermission;
         this.maxRayTraceBlockCountPerChunk = maxRayTraceBlockCountPerChunk;
         List<String> toObfuscate;
 
         if (engineMode == EngineMode.HIDE) {
-            toObfuscate = xrayConfig.hiddenBlocks;
+            toObfuscate = paperWorldConfig.hiddenBlocks;
             presetBlockStates = null;
             presetBlockStatesFull = null;
             presetBlockStatesStone = new BlockState[]{Blocks.STONE.defaultBlockState()};
@@ -87,10 +87,10 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             presetBlockStateBitsNetherrackGlobal = new int[]{GLOBAL_BLOCKSTATE_PALETTE.idFor(Blocks.NETHERRACK.defaultBlockState())};
             presetBlockStateBitsEndStoneGlobal = new int[]{GLOBAL_BLOCKSTATE_PALETTE.idFor(Blocks.END_STONE.defaultBlockState())};
         } else {
-            toObfuscate = new ArrayList<>(xrayConfig.replacementBlocks);
+            toObfuscate = new ArrayList<>(paperWorldConfig.replacementBlocks);
             List<BlockState> presetBlockStateList = new LinkedList<>();
 
-            for (String id : xrayConfig.hiddenBlocks) {
+            for (String id : paperWorldConfig.hiddenBlocks) {
                 Block block = Registry.BLOCK.getOptional(new ResourceLocation(id)).orElse(null);
 
                 if (block != null && !(block instanceof EntityBlock)) {
@@ -152,7 +152,6 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             }
         }
 
-        @SuppressWarnings("deprecation")
         EmptyLevelChunk emptyChunk = new EmptyLevelChunk(level, new ChunkPos(0, 0), MinecraftServer.getServer().registryAccess().registryOrThrow(Registry.BIOME_REGISTRY).getHolderOrThrow(Biomes.PLAINS));
         BlockPos zeroPos = new BlockPos(0, 0, 0);
 
@@ -161,7 +160,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
 
             if (blockState != null) {
                 solidGlobal[i] = blockState.isRedstoneConductor(emptyChunk, zeroPos)
-                    && blockState.getBlock() != Blocks.SPAWNER && blockState.getBlock() != Blocks.BARRIER && blockState.getBlock() != Blocks.SHULKER_BOX && blockState.getBlock() != Blocks.SLIME_BLOCK || xrayConfig.lavaObscures && blockState == Blocks.LAVA.defaultBlockState();
+                    && blockState.getBlock() != Blocks.SPAWNER && blockState.getBlock() != Blocks.BARRIER && blockState.getBlock() != Blocks.SHULKER_BOX && blockState.getBlock() != Blocks.SLIME_BLOCK && blockState.getBlock() != Blocks.MANGROVE_ROOTS || paperWorldConfig.lavaObscures && blockState == Blocks.LAVA.defaultBlockState();
                 // Comparing blockState == Blocks.LAVA.defaultBlockState() instead of blockState.getBlock() == Blocks.LAVA ensures that only "stationary lava" is used
                 // shulker box checks TE.
             }
@@ -206,7 +205,6 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         return new ChunkPacketInfoAntiXray(chunkPacket, chunk, this);
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public void modifyBlocks(ClientboundLevelChunkWithLightPacket chunkPacket, ChunkPacketInfo<BlockState> chunkPacketInfo) {
         if (!(chunkPacketInfo instanceof ChunkPacketInfoAntiXray)) {
@@ -785,7 +783,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
     }
 
     @Override
-    public void onPlayerLeftClickBlock(ServerPlayerGameMode serverPlayerGameMode, BlockPos blockPos, ServerboundPlayerActionPacket.Action action, Direction direction, int worldHeight) {
+    public void onPlayerLeftClickBlock(ServerPlayerGameMode serverPlayerGameMode, BlockPos blockPos, ServerboundPlayerActionPacket.Action action, Direction direction, int worldHeight, int sequence) {
         if (blockPos.getY() <= maxBlockHeightUpdatePosition) {
             updateNearbyBlocks(serverPlayerGameMode.level, blockPos);
         }

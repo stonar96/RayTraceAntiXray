@@ -1,16 +1,20 @@
 package com.vanillage.raytraceantixray;
 
 import java.io.File;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Timer;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.craftbukkit.v1_19_R1.CraftWorld;
 import org.bukkit.craftbukkit.v1_19_R1.entity.CraftEntity;
 import org.bukkit.entity.Entity;
@@ -18,7 +22,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
 import com.comphenix.protocol.ProtocolLibrary;
-import com.destroystokyo.paper.antixray.ChunkPacketBlockControllerAntiXray.EngineMode;
 import com.google.common.collect.MapMaker;
 import com.vanillage.raytraceantixray.antixray.ChunkPacketBlockControllerAntiXray;
 import com.vanillage.raytraceantixray.commands.RayTraceAntiXrayTabExecutor;
@@ -30,6 +33,7 @@ import com.vanillage.raytraceantixray.listeners.WorldListener;
 import com.vanillage.raytraceantixray.tasks.RayTraceTimerTask;
 import com.vanillage.raytraceantixray.tasks.UpdateBukkitRunnable;
 
+import io.papermc.paper.configuration.type.EngineMode;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
@@ -37,9 +41,9 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 public final class RayTraceAntiXray extends JavaPlugin {
-    private ConcurrentHashMap<UUID, Boolean> thirdPersonByWorldId = new ConcurrentHashMap<UUID, Boolean>();
     private volatile boolean running = false;
     private volatile boolean timings = false;
+    private final Map<UUID, Boolean> thirdPersonByWorldId = new HashMap<>();
     private final Map<ClientboundLevelChunkWithLightPacket, ChunkBlocks> packetChunkBlocksCache = new MapMaker().weakKeys().makeMap();
     private final Map<UUID, PlayerData> playerData = new ConcurrentHashMap<>();
     private ExecutorService executorService;
@@ -50,6 +54,7 @@ public final class RayTraceAntiXray extends JavaPlugin {
         if (!new File(getDataFolder(), "README.txt").exists()) {
             saveResource("README.txt", false);
         }
+
         saveDefaultConfig();
         getConfig().options().copyDefaults(true);
         // saveConfig();
@@ -84,6 +89,7 @@ public final class RayTraceAntiXray extends JavaPlugin {
             e.printStackTrace();
         }
 
+        thirdPersonByWorldId.clear();
         packetChunkBlocksCache.clear();
         playerData.clear();
         getLogger().info(getDescription().getFullName() + " disabled");
@@ -111,6 +117,10 @@ public final class RayTraceAntiXray extends JavaPlugin {
         this.timings = timings;
     }
 
+    public Map<UUID, Boolean> getThirdPersonByWorldId() {
+        return thirdPersonByWorldId;
+    }
+
     public Map<ClientboundLevelChunkWithLightPacket, ChunkBlocks> getPacketChunkBlocksCache() {
         return packetChunkBlocksCache;
     }
@@ -121,10 +131,6 @@ public final class RayTraceAntiXray extends JavaPlugin {
 
     public ExecutorService getExecutorService() {
         return executorService;
-    }
-
-    public Map<UUID, Boolean> getThirdPersonByWorldId() {
-        return thirdPersonByWorldId;
     }
 
     public boolean isEnabled(World world) {

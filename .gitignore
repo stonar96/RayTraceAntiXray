@@ -46,6 +46,3 @@ replay_pid*
 # RayTraceAntiXray
 /Libs/cache/
 /Libs/versions/
-
-# Intellij
-/.idea/
