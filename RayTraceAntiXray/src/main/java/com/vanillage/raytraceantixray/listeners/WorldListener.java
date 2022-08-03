@@ -4,10 +4,12 @@ import java.lang.reflect.Field;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.bukkit.craftbukkit.v1_18_R2.CraftWorld;
+import org.bukkit.craftbukkit.v1_19_R1.CraftWorld;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.world.WorldInitEvent;
+import org.bukkit.event.world.WorldUnloadEvent;
 
 import com.vanillage.raytraceantixray.RayTraceAntiXray;
 import com.vanillage.raytraceantixray.antixray.ChunkPacketBlockControllerAntiXray;
@@ -23,10 +25,10 @@ public final class WorldListener implements Listener {
         this.plugin = plugin;
     }
 
-    @SuppressWarnings("deprecation")
     @EventHandler
     public void onWorldInit(WorldInitEvent event) {
         if (plugin.isEnabled(event.getWorld())) {
+            plugin.getThirdPersonByWorldId().put(event.getWorld().getUID(), plugin.getConfig().getBoolean("world-settings." + event.getWorld().getName() + ".anti-xray.ray-trace-third-person", plugin.getConfig().getBoolean("world-settings.default.anti-xray.ray-trace-third-person")));
             List<String> toTrace = plugin.getConfig().getList("world-settings." + event.getWorld().getName() + ".anti-xray.ray-trace-blocks", plugin.getConfig().getList("world-settings.default.anti-xray.ray-trace-blocks")).stream().filter(o -> o != null).map(String::valueOf).collect(Collectors.toList());
 
             try {
@@ -40,5 +42,10 @@ public final class WorldListener implements Listener {
                 e.printStackTrace();
             }
         }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onWorldUnload(WorldUnloadEvent event) {
+        plugin.getThirdPersonByWorldId().remove(event.getWorld().getUID());
     }
 }
