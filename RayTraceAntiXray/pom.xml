@@ -3,7 +3,7 @@
   <parent>
     <groupId>com.vanillage.raytraceantixray</groupId>
     <artifactId>raytraceantixray-parent</artifactId>
-    <version>1.8.0</version>
+    <version>1.8.1</version>
   </parent>
   <artifactId>raytraceantixray</artifactId>
   <name>RayTraceAntiXray</name>
@@ -56,7 +56,7 @@
     <dependency>
       <groupId>com.mojang</groupId>
       <artifactId>datafixerupper</artifactId>
-      <version>4.1.27</version>
+      <version>5.0.28</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -110,7 +110,7 @@
           <dependency>
             <groupId>net.fabricmc</groupId>
             <artifactId>tiny-remapper</artifactId>
-            <version>0.8.5</version>
+            <version>0.8.6</version>
             <classifier>fat</classifier>
           </dependency>
         </dependencies>

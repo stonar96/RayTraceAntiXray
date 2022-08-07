@@ -7,7 +7,7 @@
   <name>Libs</name>
   <description>Libs.</description>
   <properties>
-    <minecraftVersion>1.19.1</minecraftVersion>
+    <minecraftVersion>1.19.2</minecraftVersion>
     <paperVersion>${minecraftVersion}-R0.1-SNAPSHOT</paperVersion>
   </properties>
   <repositories>
