@@ -3,7 +3,6 @@ package com.vanillage.raytraceantixray;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Timer;
@@ -22,6 +21,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
 import com.comphenix.protocol.ProtocolLibrary;
+import com.destroystokyo.paper.antixray.ChunkPacketBlockController;
 import com.google.common.collect.MapMaker;
 import com.vanillage.raytraceantixray.antixray.ChunkPacketBlockControllerAntiXray;
 import com.vanillage.raytraceantixray.commands.RayTraceAntiXrayTabExecutor;
@@ -43,7 +43,6 @@ import net.minecraft.world.phys.Vec3;
 public final class RayTraceAntiXray extends JavaPlugin {
     private volatile boolean running = false;
     private volatile boolean timings = false;
-    private final Map<UUID, Boolean> thirdPersonByWorldId = new HashMap<>();
     private final Map<ClientboundLevelChunkWithLightPacket, ChunkBlocks> packetChunkBlocksCache = new MapMaker().weakKeys().makeMap();
     private final Map<UUID, PlayerData> playerData = new ConcurrentHashMap<>();
     private ExecutorService executorService;
@@ -89,7 +88,6 @@ public final class RayTraceAntiXray extends JavaPlugin {
             e.printStackTrace();
         }
 
-        thirdPersonByWorldId.clear();
         packetChunkBlocksCache.clear();
         playerData.clear();
         getLogger().info(getDescription().getFullName() + " disabled");
@@ -117,10 +115,6 @@ public final class RayTraceAntiXray extends JavaPlugin {
         this.timings = timings;
     }
 
-    public Map<UUID, Boolean> getThirdPersonByWorldId() {
-        return thirdPersonByWorldId;
-    }
-
     public Map<ClientboundLevelChunkWithLightPacket, ChunkBlocks> getPacketChunkBlocksCache() {
         return packetChunkBlocksCache;
     }
@@ -138,7 +132,9 @@ public final class RayTraceAntiXray extends JavaPlugin {
     }
 
     public List<Location> getLocations(Entity entity, Location location) {
-        if (((CraftWorld) location.getWorld()).getHandle().chunkPacketBlockController instanceof ChunkPacketBlockControllerAntiXray && thirdPersonByWorldId.get(location.getWorld().getUID())) {
+        ChunkPacketBlockController chunkPacketBlockController = ((CraftWorld) location.getWorld()).getHandle().chunkPacketBlockController;
+
+        if (chunkPacketBlockController instanceof ChunkPacketBlockControllerAntiXray && ((ChunkPacketBlockControllerAntiXray) chunkPacketBlockController).rayTraceThirdPerson) {
             Vector direction = location.getDirection();
             return Arrays.asList(location, move(entity, location, direction), move(entity, location, direction.multiply(-1.)).setDirection(direction));
         }

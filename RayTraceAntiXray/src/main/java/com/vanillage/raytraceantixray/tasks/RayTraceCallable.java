@@ -11,7 +11,6 @@ import org.bukkit.craftbukkit.v1_19_R1.CraftWorld;
 import org.bukkit.util.Vector;
 
 import com.destroystokyo.paper.antixray.ChunkPacketBlockController;
-import com.vanillage.raytraceantixray.RayTraceAntiXray;
 import com.vanillage.raytraceantixray.antixray.ChunkPacketBlockControllerAntiXray;
 import com.vanillage.raytraceantixray.data.ChunkBlocks;
 import com.vanillage.raytraceantixray.data.PlayerData;
@@ -36,11 +35,9 @@ public final class RayTraceCallable implements Callable<Void> {
     private static final IntArrayConsumer[] CENTER_TO_Y_TORUS = new IntArrayConsumer[] { INCREASE_Z, INCREASE_X, DECREASE_Z, DECREASE_Z, DECREASE_X, DECREASE_X, INCREASE_Z, INCREASE_Z };
     private static final IntArrayConsumer[] CENTER_TO_Z_TORUS = new IntArrayConsumer[] { INCREASE_X, INCREASE_Y, DECREASE_X, DECREASE_X, DECREASE_Y, DECREASE_Y, INCREASE_X, INCREASE_X };
     private final int[] ref = new int[3];
-    private final RayTraceAntiXray plugin;
     private final PlayerData playerData;
 
-    public RayTraceCallable(RayTraceAntiXray plugin, PlayerData playerData) {
-        this.plugin = plugin;
+    public RayTraceCallable(PlayerData playerData) {
         this.playerData = playerData;
     }
 
@@ -54,8 +51,9 @@ public final class RayTraceCallable implements Callable<Void> {
             return null;
         }
 
-        boolean[] solidGlobal = ((ChunkPacketBlockControllerAntiXray) chunkPacketBlockController).solidGlobal;
-        double rayTraceDistance = Math.max(plugin.getConfig().getDouble("world-settings." + playerLocation.getWorld().getName() + ".anti-xray.ray-trace-distance", plugin.getConfig().getDouble("world-settings.default.anti-xray.ray-trace-distance")), 0.);
+        ChunkPacketBlockControllerAntiXray chunkPacketBlockControllerAntiXray = (ChunkPacketBlockControllerAntiXray) chunkPacketBlockController;
+        boolean[] solidGlobal = chunkPacketBlockControllerAntiXray.solidGlobal;
+        double rayTraceDistance = chunkPacketBlockControllerAntiXray.rayTraceDistance;
         Location temp = playerLocation.clone();
         temp.setX(playerLocation.getX() - rayTraceDistance);
         temp.setZ(playerLocation.getZ() - rayTraceDistance);

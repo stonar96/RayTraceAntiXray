@@ -60,9 +60,11 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
     private final boolean[] obfuscateGlobal = new boolean[Block.BLOCK_STATE_REGISTRY.size()];
     private final boolean[] traceGlobal;
     private final LevelChunkSection[] emptyNearbyChunkSections = {EMPTY_SECTION, EMPTY_SECTION, EMPTY_SECTION, EMPTY_SECTION};
+    public final boolean rayTraceThirdPerson;
+    public final double rayTraceDistance;
     private final int maxBlockHeightUpdatePosition;
 
-    public ChunkPacketBlockControllerAntiXray(RayTraceAntiXray plugin, int maxRayTraceBlockCountPerChunk, Iterable<? extends String> toTrace, Level level, Executor executor) {
+    public ChunkPacketBlockControllerAntiXray(RayTraceAntiXray plugin, boolean rayTraceThirdPerson, double rayTraceDistance, int maxRayTraceBlockCountPerChunk, Iterable<? extends String> toTrace, Level level, Executor executor) {
         this.plugin = plugin;
         this.executor = executor;
         WorldConfiguration.Anticheat.AntiXray paperWorldConfig = level.paperConfig().anticheat.antiXray;
@@ -70,6 +72,8 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         maxBlockHeight = paperWorldConfig.maxBlockHeight >> 4 << 4;
         updateRadius = paperWorldConfig.updateRadius;
         usePermission = paperWorldConfig.usePermission;
+        this.rayTraceThirdPerson = rayTraceThirdPerson;
+        this.rayTraceDistance = rayTraceDistance;
         this.maxRayTraceBlockCountPerChunk = maxRayTraceBlockCountPerChunk;
         List<String> toObfuscate;
 

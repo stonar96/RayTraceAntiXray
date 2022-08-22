@@ -32,5 +32,5 @@ world-settings:
       ray-trace: true
       ray-trace-third-person: false
       ray-trace-distance: 80.0
-      max-ray-trace-block-count-per-chunk: 30
+      max-ray-trace-block-count-per-chunk: 100
       ray-trace-blocks: []
