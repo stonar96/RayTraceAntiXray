@@ -2,24 +2,24 @@
 # 
 # settings:
 #   anti-xray:
-#     update-ticks: 1                           # Specifies the time period in Minecraft ticks for sending block updates.
-#     ms-per-ray-trace-tick: 50                 # Specifies the target time per ray trace tick in milliseconds.
-#     ray-trace-threads: 2                      # Specifies the number of threads that are used for ray tracing.
+#     update-ticks: 1                           # Time period in Minecraft ticks for sending block updates.
+#     ms-per-ray-trace-tick: 50                 # Target time per ray trace tick in milliseconds.
+#     ray-trace-threads: 2                      # Number of threads that are used for ray tracing.
 # world-settings:
-#   default:                                    # The values of the 'default' section apply to all worlds, that don't have the values specified.
+#   default:                                    # All worlds inherit settings from the `default` section.
 #     anti-xray:
-#       ray-trace: true                         # Enables ray tracing. Anti-Xray must be enabled in the paper.yml file with 'engine-mode: 1'.
-#       ray-trace-third-person: false           # Whether or not to ray trace third person back and front view. Note that this is even more resource intensive.
-#       ray-trace-distance: 80.0                # Maximum distance between a player (eye location) and a block (center) for ray tracing.
-#       max-ray-trace-block-count-per-chunk: 30 # The maximum number of ray traced blocks per chunk. Counting starts at the bottom of the world and increases upwards.
-#       ray-trace-blocks:                       # Specifies the blocks that will be obfuscated and ray traced. The hidden-blocks specified in the paper.yml file will only be obfuscated (but not ray traced when exposed to transparent blocks). If this list is empty, the hidden-blocks specified in the paper.yml file will be used.
+#       ray-trace: true                         # Whether or not to enable ray tracing. Note that Paper Anti-Xray must also be enabled using 'engine-mode: 1'.
+#       ray-trace-third-person: true            # Whether or not to ray trace third person back and front view. Note that this is even more resource intensive.
+#       ray-trace-distance: 64.0                # Maximum distance between player (eye location) and block (center) for ray tracing.
+#       max-ray-trace-block-count-per-chunk: 30 # Maximum number of ray traced blocks per chunk. Counting starts at the bottom of the world and increases upwards.
+#       ray-trace-blocks:                       # Blocks that are hidden and ray traced. The `hidden-blocks` specified in the Paper config file are only hidden if they aren't exposed to transparent blocks. If this list is empty, the `hidden-blocks` specified in the Paper config file are used.
 #       - diamond_ore
 #       - deepslate_diamond_ore
 #       - emerald_ore
 #       - deepslate_emerald_ore
-#   lobby:                                      # Example section for the world 'lobby'. Inherits the missing values from the 'default' section and overrides the existing values.
+#   lobby:                                      # Example section for the world 'lobby'. Missing settings are inherited from the `default` section.
 #     anti-xray:
-#       ray-trace: false                        # Disables ray tracing in the world 'lobby'.
+#       ray-trace: false                        # Disable ray tracing in the world 'lobby'.
 
 settings:
   anti-xray:
