@@ -6,20 +6,20 @@
 #     ms-per-ray-trace-tick: 50                 # Target time per ray trace tick in milliseconds.
 #     ray-trace-threads: 2                      # Number of threads that are used for ray tracing.
 # world-settings:
-#   default:                                    # All worlds inherit settings from the `default` section.
+#   default:                                    # All worlds inherit settings from the default section.
 #     anti-xray:
-#       ray-trace: true                         # Whether or not to enable ray tracing. Note that Paper Anti-Xray must also be enabled using 'engine-mode: 1'.
+#       ray-trace: true                         # Whether or not to enable ray tracing. Note that Paper Anti-Xray must also be enabled using engine-mode: 1.
 #       ray-trace-third-person: true            # Whether or not to ray trace third person back and front view. Note that this is even more resource intensive.
 #       ray-trace-distance: 64.0                # Maximum distance between player (eye location) and block (center) for ray tracing.
 #       max-ray-trace-block-count-per-chunk: 30 # Maximum number of ray traced blocks per chunk. Counting starts at the bottom of the world and increases upwards.
-#       ray-trace-blocks:                       # Blocks that are hidden and ray traced. The `hidden-blocks` specified in the Paper config file are only hidden if they aren't exposed to transparent blocks. If this list is empty, the `hidden-blocks` specified in the Paper config file are used.
+#       ray-trace-blocks:                       # Blocks that are hidden and ray traced. The hidden-blocks specified in the Paper config file are only hidden if they aren't exposed to transparent blocks. If this list is empty, the hidden-blocks specified in the Paper config file are used.
 #       - diamond_ore
 #       - deepslate_diamond_ore
 #       - emerald_ore
 #       - deepslate_emerald_ore
-#   lobby:                                      # Example section for the world 'lobby'. Missing settings are inherited from the `default` section.
+#   lobby:                                      # Example section for the world lobby. Missing settings are inherited from the default section.
 #     anti-xray:
-#       ray-trace: false                        # Disable ray tracing in the world 'lobby'.
+#       ray-trace: false                        # Disable ray tracing in the world lobby.
 
 settings:
   anti-xray:
