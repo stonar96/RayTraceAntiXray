@@ -31,9 +31,18 @@ public final class RayTraceCallable implements Callable<Void> {
     private static final IntArrayConsumer DECREASE_Y = c -> c[1]--;
     private static final IntArrayConsumer INCREASE_Z = c -> c[2]++;
     private static final IntArrayConsumer DECREASE_Z = c -> c[2]--;
-    private static final IntArrayConsumer[] CENTER_TO_X_TORUS = new IntArrayConsumer[] { INCREASE_Y, INCREASE_Z, DECREASE_Y, DECREASE_Y, DECREASE_Z, DECREASE_Z, INCREASE_Y, INCREASE_Y };
-    private static final IntArrayConsumer[] CENTER_TO_Y_TORUS = new IntArrayConsumer[] { INCREASE_Z, INCREASE_X, DECREASE_Z, DECREASE_Z, DECREASE_X, DECREASE_X, INCREASE_Z, INCREASE_Z };
-    private static final IntArrayConsumer[] CENTER_TO_Z_TORUS = new IntArrayConsumer[] { INCREASE_X, INCREASE_Y, DECREASE_X, DECREASE_X, DECREASE_Y, DECREASE_Y, INCREASE_X, INCREASE_X };
+    private static final IntArrayConsumer[] NEARBY_BLOCKS_X_PLANE_Y_POS_Z_POS = new IntArrayConsumer[] { INCREASE_Y, INCREASE_Z, DECREASE_Y };
+    private static final IntArrayConsumer[] NEARBY_BLOCKS_X_PLANE_Y_POS_Z_NEG = new IntArrayConsumer[] { INCREASE_Y, DECREASE_Z, DECREASE_Y };
+    private static final IntArrayConsumer[] NEARBY_BLOCKS_X_PLANE_Y_NEG_Z_POS = new IntArrayConsumer[] { DECREASE_Y, INCREASE_Z, INCREASE_Y };
+    private static final IntArrayConsumer[] NEARBY_BLOCKS_X_PLANE_Y_NEG_Z_NEG = new IntArrayConsumer[] { DECREASE_Y, DECREASE_Z, INCREASE_Y };
+    private static final IntArrayConsumer[] NEARBY_BLOCKS_Y_PLANE_Z_POS_X_POS = new IntArrayConsumer[] { INCREASE_Z, INCREASE_X, DECREASE_Z };
+    private static final IntArrayConsumer[] NEARBY_BLOCKS_Y_PLANE_Z_POS_X_NEG = new IntArrayConsumer[] { INCREASE_Z, DECREASE_X, DECREASE_Z };
+    private static final IntArrayConsumer[] NEARBY_BLOCKS_Y_PLANE_Z_NEG_X_POS = new IntArrayConsumer[] { DECREASE_Z, INCREASE_X, INCREASE_Z };
+    private static final IntArrayConsumer[] NEARBY_BLOCKS_Y_PLANE_Z_NEG_X_NEG = new IntArrayConsumer[] { DECREASE_Z, DECREASE_X, INCREASE_Z };
+    private static final IntArrayConsumer[] NEARBY_BLOCKS_Z_PLANE_X_POS_Y_POS = new IntArrayConsumer[] { INCREASE_X, INCREASE_Y, DECREASE_X };
+    private static final IntArrayConsumer[] NEARBY_BLOCKS_Z_PLANE_X_POS_Y_NEG = new IntArrayConsumer[] { INCREASE_X, DECREASE_Y, DECREASE_X };
+    private static final IntArrayConsumer[] NEARBY_BLOCKS_Z_PLANE_X_NEG_Y_POS = new IntArrayConsumer[] { DECREASE_X, INCREASE_Y, INCREASE_X };
+    private static final IntArrayConsumer[] NEARBY_BLOCKS_Z_PLANE_X_NEG_Y_NEG = new IntArrayConsumer[] { DECREASE_X, DECREASE_Y, INCREASE_X };
     private final int[] ref = new int[3];
     private final PlayerData playerData;
 
@@ -43,18 +52,29 @@ public final class RayTraceCallable implements Callable<Void> {
 
     @Override
     public Void call() {
+        try {
+            rayTrace();
+        } catch (Throwable t) {
+            t.printStackTrace();
+            throw t;
+        }
+
+        return null;
+    }
+
+    private void rayTrace() {
         List<? extends Location> locations = playerData.getLocations();
         Location playerLocation = locations.get(0);
         ChunkPacketBlockController chunkPacketBlockController = ((CraftWorld) playerLocation.getWorld()).getHandle().chunkPacketBlockController;
 
         if (!(chunkPacketBlockController instanceof ChunkPacketBlockControllerAntiXray)) {
-            return null;
+            return;
         }
 
         ChunkPacketBlockControllerAntiXray chunkPacketBlockControllerAntiXray = (ChunkPacketBlockControllerAntiXray) chunkPacketBlockController;
         boolean[] solidGlobal = chunkPacketBlockControllerAntiXray.solidGlobal;
         double rayTraceDistance = chunkPacketBlockControllerAntiXray.rayTraceDistance;
-        Location temp = playerLocation.clone();
+        Vector temp = playerLocation.toVector();
         temp.setX(playerLocation.getX() - rayTraceDistance);
         temp.setZ(playerLocation.getZ() - rayTraceDistance);
         int chunkXMin = temp.getBlockX() >> 4;
@@ -65,32 +85,36 @@ public final class RayTraceCallable implements Callable<Void> {
         int chunkZMax = temp.getBlockZ() >> 4;
         double rayTraceDistanceSquared = rayTraceDistance * rayTraceDistance;
 
-        for (Location location : locations) {
-            Vector vector = location.toVector();
-            Vector direction = location.getDirection();
+        for (Entry<ChunkPos, ChunkBlocks> chunkEntry : playerData.getChunks().entrySet()) {
+            ChunkBlocks chunkBlocks = chunkEntry.getValue();
+            LevelChunk chunk = chunkBlocks.getChunk();
 
-            for (Entry<ChunkPos, ChunkBlocks> chunkEntry : playerData.getChunks().entrySet()) {
-                ChunkBlocks chunkBlocks = chunkEntry.getValue();
-                LevelChunk chunk = chunkBlocks.getChunk();
+            if (chunk == null) {
+                playerData.getChunks().remove(chunkEntry.getKey(), chunkBlocks);
+                continue;
+            }
 
-                if (chunk == null) {
-                    playerData.getChunks().remove(chunkEntry.getKey(), chunkBlocks);
+            if (chunk.locX < chunkXMin || chunk.locX > chunkXMax || chunk.locZ < chunkZMin || chunk.locZ > chunkZMax) {
+                continue;
+            }
+
+            Iterator<? extends BlockPos> iterator = chunkBlocks.getBlocks().iterator();
+
+            while (iterator.hasNext()) {
+                BlockPos block = iterator.next();
+                block = new BlockPos((chunk.locX << 4) + block.getX(), block.getY(), (chunk.locZ << 4) + block.getZ());
+                Vector blockCenter = new Vector(block.getX() + 0.5, block.getY() + 0.5, block.getZ() + 0.5);
+
+                if (!(playerLocation.toVector().subtract(blockCenter).lengthSquared() <= rayTraceDistanceSquared)) {
                     continue;
                 }
 
-                if (chunk.locX < chunkXMin || chunk.locX > chunkXMax || chunk.locZ < chunkZMin || chunk.locZ > chunkZMax) {
-                    continue;
-                }
-
-                Iterator<? extends BlockPos> iterator = chunkBlocks.getBlocks().iterator();
-
-                while (iterator.hasNext()) {
-                    BlockPos block = iterator.next();
-                    block = new BlockPos((chunk.locX << 4) + block.getX(), block.getY(), (chunk.locZ << 4) + block.getZ());
-                    Vector blockCenter = new Vector(block.getX() + 0.5, block.getY() + 0.5, block.getZ() + 0.5);
+                for (Location location : locations) {
+                    Vector vector = location.toVector();
                     Vector difference = vector.clone().subtract(blockCenter);
 
-                    if (difference.lengthSquared() > rayTraceDistanceSquared || difference.dot(direction) > 0.) {
+                    // Actually, we should check all 8 block corners here instead of the block center.
+                    if (!(difference.dot(location.getDirection()) <= 0.)) {
                         continue;
                     }
 
@@ -142,7 +166,7 @@ public final class RayTraceCallable implements Callable<Void> {
                         //     }
                         // }
 
-                        if (solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(blockState)] && checkSurroundingBlocks(block.getX(), block.getY(), block.getZ(), rayBlock.getX(), rayBlock.getY(), rayBlock.getZ(), difference, section, chunkPos.x, sectionY, chunkPos.z, playerData, solidGlobal)) {
+                        if (solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(blockState)] && checkNearbyBlocks(block.getX(), block.getY(), block.getZ(), rayBlock.getX(), rayBlock.getY(), rayBlock.getZ(), difference, section, chunkPos.x, sectionY, chunkPos.z, playerData, solidGlobal)) {
                             update = false;
                             break;
                         }
@@ -151,15 +175,198 @@ public final class RayTraceCallable implements Callable<Void> {
                     if (update) {
                         playerData.getResult().add(block);
                         iterator.remove();
+                        break;
                     }
                 }
             }
         }
-
-        return null;
     }
 
-    private BlockState getBlockData(int x, int y, int z, LevelChunkSection expectedSection, int expectedChunkX, int expectedSectionY, int expectedChunkZ, PlayerData playerData) {
+    private boolean checkNearbyBlocks(int blockX, int blockY, int blockZ, int rayBlockX, int rayBlockY, int rayBlockZ, Vector difference, LevelChunkSection expectedSection, int expectedChunkX, int expectedSectionY, int expectedChunkZ, PlayerData playerData, boolean[] solidGlobal) {
+        IntArrayConsumer[] nearbyBlocks;
+        IntArrayConsumer increase;
+        IntArrayConsumer decrease;
+        double absDifferenceX = Math.abs(difference.getX());
+        double absDifferenceY = Math.abs(difference.getY());
+        double absDifferenceZ = Math.abs(difference.getZ());
+        Vector rayBlockDifference = new Vector(rayBlockX - blockX, rayBlockY - blockY, rayBlockZ - blockZ);
+
+        if (absDifferenceX > absDifferenceY) {
+            if (absDifferenceZ > absDifferenceX) {
+                intersectZ(rayBlockDifference, difference.getZ()).subtract(difference);
+
+                if (rayBlockDifference.getX() > 0.) {
+                    if (rayBlockDifference.getY() > 0.) {
+                        nearbyBlocks = NEARBY_BLOCKS_Z_PLANE_X_NEG_Y_NEG;
+                    } else {
+                        nearbyBlocks = NEARBY_BLOCKS_Z_PLANE_X_NEG_Y_POS;
+                    }
+                } else {
+                    if (rayBlockDifference.getY() > 0.) {
+                        nearbyBlocks = NEARBY_BLOCKS_Z_PLANE_X_POS_Y_NEG;
+                    } else {
+                        nearbyBlocks = NEARBY_BLOCKS_Z_PLANE_X_POS_Y_POS;
+                    }
+                }
+
+                if (difference.getZ() > 0.) {
+                    increase = DECREASE_Z;
+                    decrease = INCREASE_Z;
+                } else {
+                    increase = INCREASE_Z;
+                    decrease = DECREASE_Z;
+                }
+            } else {
+                intersectX(rayBlockDifference, difference.getX()).subtract(difference);
+
+                if (rayBlockDifference.getY() > 0.) {
+                    if (rayBlockDifference.getZ() > 0.) {
+                        nearbyBlocks = NEARBY_BLOCKS_X_PLANE_Y_NEG_Z_NEG;
+                    } else {
+                        nearbyBlocks = NEARBY_BLOCKS_X_PLANE_Y_NEG_Z_POS;
+                    }
+                } else {
+                    if (rayBlockDifference.getZ() > 0.) {
+                        nearbyBlocks = NEARBY_BLOCKS_X_PLANE_Y_POS_Z_NEG;
+                    } else {
+                        nearbyBlocks = NEARBY_BLOCKS_X_PLANE_Y_POS_Z_POS;
+                    }
+                }
+
+                if (difference.getX() > 0.) {
+                    increase = DECREASE_X;
+                    decrease = INCREASE_X;
+                } else {
+                    increase = INCREASE_X;
+                    decrease = DECREASE_X;
+                }
+            }
+        } else if (absDifferenceY > absDifferenceZ) {
+            intersectY(rayBlockDifference, difference.getY()).subtract(difference);
+
+            if (rayBlockDifference.getZ() > 0.) {
+                if (rayBlockDifference.getX() > 0.) {
+                    nearbyBlocks = NEARBY_BLOCKS_Y_PLANE_Z_NEG_X_NEG;
+                } else {
+                    nearbyBlocks = NEARBY_BLOCKS_Y_PLANE_Z_NEG_X_POS;
+                }
+            } else {
+                if (rayBlockDifference.getX() > 0.) {
+                    nearbyBlocks = NEARBY_BLOCKS_Y_PLANE_Z_POS_X_NEG;
+                } else {
+                    nearbyBlocks = NEARBY_BLOCKS_Y_PLANE_Z_POS_X_POS;
+                }
+            }
+
+            if (difference.getY() > 0.) {
+                increase = DECREASE_Y;
+                decrease = INCREASE_Y;
+            } else {
+                increase = INCREASE_Y;
+                decrease = DECREASE_Y;
+            }
+        } else {
+            intersectZ(rayBlockDifference, difference.getZ()).subtract(difference);
+
+            if (rayBlockDifference.getX() > 0.) {
+                if (rayBlockDifference.getY() > 0.) {
+                    nearbyBlocks = NEARBY_BLOCKS_Z_PLANE_X_NEG_Y_NEG;
+                } else {
+                    nearbyBlocks = NEARBY_BLOCKS_Z_PLANE_X_NEG_Y_POS;
+                }
+            } else {
+                if (rayBlockDifference.getY() > 0.) {
+                    nearbyBlocks = NEARBY_BLOCKS_Z_PLANE_X_POS_Y_NEG;
+                } else {
+                    nearbyBlocks = NEARBY_BLOCKS_Z_PLANE_X_POS_Y_POS;
+                }
+            }
+
+            if (difference.getZ() > 0.) {
+                increase = DECREASE_Z;
+                decrease = INCREASE_Z;
+            } else {
+                increase = INCREASE_Z;
+                decrease = DECREASE_Z;
+            }
+        }
+
+        // int[] ref = { rayBlockX, rayBlockY, rayBlockZ };
+        ref[0] = rayBlockX;
+        ref[1] = rayBlockY;
+        ref[2] = rayBlockZ;
+
+        for (int step = 0; step < nearbyBlocks.length; step++) {
+            nearbyBlocks[step].accept(ref);
+            BlockState blockState = getBlockData(ref[0], ref[1], ref[2], expectedSection, expectedChunkX, expectedSectionY, expectedChunkZ, playerData);
+
+            if (blockState == null) {
+                return true;
+            }
+
+            if (solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(blockState)]) {
+                continue;
+            }
+
+            increase.accept(ref);
+
+            if (ref[0] == blockX && ref[1] == blockY && ref[2] == blockZ) {
+                return false;
+            }
+
+            blockState = getBlockData(ref[0], ref[1], ref[2], expectedSection, expectedChunkX, expectedSectionY, expectedChunkZ, playerData);
+
+            if (blockState == null) {
+                return true;
+            }
+
+            if (!solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(blockState)]) {
+                return false;
+            }
+
+            decrease.accept(ref);
+        }
+
+        return true;
+    }
+
+    private static Vector intersectX(Vector vector, double x) {
+        return intersectX(vector, x, vector);
+    }
+
+    private static Vector intersectX(Vector vector, double x, Vector result) {
+        double factor = (vector.getX() == 0. && !Double.isNaN(x) ? Math.copySign(1., x) : x) / vector.getX();
+        result.setY((vector.getY() == 0. ? Math.signum(factor) : factor) * vector.getY());
+        result.setZ((vector.getZ() == 0. ? Math.signum(factor) : factor) * vector.getZ());
+        result.setX(x);
+        return result;
+    }
+
+    private static Vector intersectY(Vector vector, double y) {
+        return intersectY(vector, y, vector);
+    }
+
+    private static Vector intersectY(Vector vector, double y, Vector result) {
+        double factor = (vector.getY() == 0. && !Double.isNaN(y) ? Math.copySign(1., y) : y) / vector.getY();
+        result.setZ((vector.getZ() == 0. ? Math.signum(factor) : factor) * vector.getZ());
+        result.setX((vector.getX() == 0. ? Math.signum(factor) : factor) * vector.getX());
+        result.setY(y);
+        return result;
+    }
+
+    private static Vector intersectZ(Vector vector, double z) {
+        return intersectZ(vector, z, vector);
+    }
+
+    private static Vector intersectZ(Vector vector, double z, Vector result) {
+        double factor = (vector.getZ() == 0. && !Double.isNaN(z) ? Math.copySign(1., z) : z) / vector.getZ();
+        result.setX((vector.getX() == 0. ? Math.signum(factor) : factor) * vector.getX());
+        result.setY((vector.getY() == 0. ? Math.signum(factor) : factor) * vector.getY());
+        result.setZ(z);
+        return result;
+    }
+
+    private static BlockState getBlockData(int x, int y, int z, LevelChunkSection expectedSection, int expectedChunkX, int expectedSectionY, int expectedChunkZ, PlayerData playerData) {
         int chunkX = x >> 4;
         int sectionY = y >> 4;
         int chunkZ = z >> 4;
@@ -206,97 +413,6 @@ public final class RayTraceCallable implements Callable<Void> {
         // }
 
         return blockState;
-    }
-
-    private boolean checkSurroundingBlocks(int blockX, int blockY, int blockZ, int rayBlockX, int rayBlockY, int rayBlockZ, Vector direction, LevelChunkSection expectedSection, int expectedChunkX, int expectedSectionY, int expectedChunkZ, PlayerData playerData, boolean[] solidGlobal) {
-        IntArrayConsumer[] centerToTorus;
-        IntArrayConsumer increase;
-        IntArrayConsumer decrease;
-        double absDirectionX = Math.abs(direction.getX());
-        double absDirectionY = Math.abs(direction.getY());
-        double absDirectionZ = Math.abs(direction.getZ());
-
-        if (absDirectionX > absDirectionY) {
-            if (absDirectionZ > absDirectionX) {
-                centerToTorus = CENTER_TO_Z_TORUS;
-
-                if (direction.getZ() > 0) {
-                    increase = DECREASE_Z;
-                    decrease = INCREASE_Z;
-                } else {
-                    increase = INCREASE_Z;
-                    decrease = DECREASE_Z;
-                }
-            } else {
-                centerToTorus = CENTER_TO_X_TORUS;
-
-                if (direction.getX() > 0) {
-                    increase = DECREASE_X;
-                    decrease = INCREASE_X;
-                } else {
-                    increase = INCREASE_X;
-                    decrease = DECREASE_X;
-                }
-            }
-        } else if (absDirectionY > absDirectionZ) {
-            centerToTorus = CENTER_TO_Y_TORUS;
-
-            if (direction.getY() > 0) {
-                increase = DECREASE_Y;
-                decrease = INCREASE_Y;
-            } else {
-                increase = INCREASE_Y;
-                decrease = DECREASE_Y;
-            }
-        } else {
-            centerToTorus = CENTER_TO_Z_TORUS;
-
-            if (direction.getZ() > 0) {
-                increase = DECREASE_Z;
-                decrease = INCREASE_Z;
-            } else {
-                increase = INCREASE_Z;
-                decrease = DECREASE_Z;
-            }
-        }
-
-        // int[] ref = { rayBlockX, rayBlockY, rayBlockZ };
-        ref[0] = rayBlockX;
-        ref[1] = rayBlockY;
-        ref[2] = rayBlockZ;
-
-        for (int step = 0; step < centerToTorus.length; step++) {
-            centerToTorus[step].accept(ref);
-            BlockState blockState = getBlockData(ref[0], ref[1], ref[2], expectedSection, expectedChunkX, expectedSectionY, expectedChunkZ, playerData);
-
-            if (blockState == null) {
-                return true;
-            }
-
-            if (solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(blockState)]) {
-                continue;
-            }
-
-            increase.accept(ref);
-
-            if (ref[0] == blockX && ref[1] == blockY && ref[2] == blockZ) {
-                return false;
-            }
-
-            blockState = getBlockData(ref[0], ref[1], ref[2], expectedSection, expectedChunkX, expectedSectionY, expectedChunkZ, playerData);
-
-            if (blockState == null) {
-                return true;
-            }
-
-            if (!solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(blockState)]) {
-                return false;
-            }
-
-            decrease.accept(ref);
-        }
-
-        return true;
     }
 
     private static interface IntArrayConsumer extends Consumer<int[]> {
