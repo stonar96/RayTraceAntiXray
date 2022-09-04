@@ -19,7 +19,7 @@ public final class RayTraceTimerTask extends TimerTask {
         long start = timings ? System.currentTimeMillis() : 0L;
 
         try {
-            plugin.getExecutorService().invokeAll(plugin.getPlayerData().values().stream().map(p -> new RayTraceCallable(p)).collect(Collectors.toList()));
+            plugin.getExecutorService().invokeAll(plugin.getPlayerData().values().stream().map(p -> p.getCallable()).collect(Collectors.toList()));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } catch (RejectedExecutionException e) {

@@ -45,6 +45,7 @@ public final class RayTraceCallable implements Callable<Void> {
     private static final IntArrayConsumer[] NEARBY_BLOCKS_Z_PLANE_X_NEG_Y_NEG = new IntArrayConsumer[] { DECREASE_X, DECREASE_Y, INCREASE_X };
     private final int[] ref = new int[3];
     private final PlayerData playerData;
+    private final BlockIterator blockIterator = new BlockIterator(new Vector(), new Vector());
 
     public RayTraceCallable(PlayerData playerData) {
         this.playerData = playerData;
@@ -74,15 +75,17 @@ public final class RayTraceCallable implements Callable<Void> {
         ChunkPacketBlockControllerAntiXray chunkPacketBlockControllerAntiXray = (ChunkPacketBlockControllerAntiXray) chunkPacketBlockController;
         boolean[] solidGlobal = chunkPacketBlockControllerAntiXray.solidGlobal;
         double rayTraceDistance = chunkPacketBlockControllerAntiXray.rayTraceDistance;
-        Vector temp = playerLocation.toVector();
-        temp.setX(playerLocation.getX() - rayTraceDistance);
-        temp.setZ(playerLocation.getZ() - rayTraceDistance);
-        int chunkXMin = temp.getBlockX() >> 4;
-        int chunkZMin = temp.getBlockZ() >> 4;
-        temp.setX(playerLocation.getX() + rayTraceDistance);
-        temp.setZ(playerLocation.getZ() + rayTraceDistance);
-        int chunkXMax = temp.getBlockX() >> 4;
-        int chunkZMax = temp.getBlockZ() >> 4;
+        Vector playerVector = playerLocation.toVector();
+        playerVector.setX(playerLocation.getX() - rayTraceDistance);
+        playerVector.setZ(playerLocation.getZ() - rayTraceDistance);
+        int chunkXMin = playerVector.getBlockX() >> 4;
+        int chunkZMin = playerVector.getBlockZ() >> 4;
+        playerVector.setX(playerLocation.getX() + rayTraceDistance);
+        playerVector.setZ(playerLocation.getZ() + rayTraceDistance);
+        int chunkXMax = playerVector.getBlockX() >> 4;
+        int chunkZMax = playerVector.getBlockZ() >> 4;
+        playerVector.setX(playerLocation.getX());
+        playerVector.setZ(playerLocation.getZ());
         double rayTraceDistanceSquared = rayTraceDistance * rayTraceDistance;
 
         for (Entry<ChunkPos, ChunkBlocks> chunkEntry : playerData.getChunks().entrySet()) {
@@ -94,7 +97,7 @@ public final class RayTraceCallable implements Callable<Void> {
                 continue;
             }
 
-            if (chunk.locX < chunkXMin || chunk.locX > chunkXMax || chunk.locZ < chunkZMin || chunk.locZ > chunkZMax) {
+            if (chunk.getPos().x < chunkXMin || chunk.getPos().x > chunkXMax || chunk.getPos().z < chunkZMin || chunk.getPos().z > chunkZMax) {
                 continue;
             }
 
@@ -102,10 +105,9 @@ public final class RayTraceCallable implements Callable<Void> {
 
             while (iterator.hasNext()) {
                 BlockPos block = iterator.next();
-                block = new BlockPos((chunk.locX << 4) + block.getX(), block.getY(), (chunk.locZ << 4) + block.getZ());
                 Vector blockCenter = new Vector(block.getX() + 0.5, block.getY() + 0.5, block.getZ() + 0.5);
 
-                if (!(playerLocation.toVector().subtract(blockCenter).lengthSquared() <= rayTraceDistanceSquared)) {
+                if (!(playerVector.distanceSquared(blockCenter) <= rayTraceDistanceSquared)) {
                     continue;
                 }
 
@@ -118,7 +120,7 @@ public final class RayTraceCallable implements Callable<Void> {
                         continue;
                     }
 
-                    Iterator<BlockPos> blockIterator = new BlockIterator(blockCenter, vector);
+                    Iterator<BlockPos> blockIterator = this.blockIterator.initialize(blockCenter, vector);
                     boolean update = true;
 
                     while (blockIterator.hasNext()) {

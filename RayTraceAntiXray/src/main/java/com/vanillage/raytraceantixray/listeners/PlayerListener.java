@@ -10,6 +10,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 
 import com.vanillage.raytraceantixray.RayTraceAntiXray;
 import com.vanillage.raytraceantixray.data.PlayerData;
+import com.vanillage.raytraceantixray.tasks.RayTraceCallable;
 
 public final class PlayerListener implements Listener {
     private final RayTraceAntiXray plugin;
@@ -20,7 +21,9 @@ public final class PlayerListener implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        plugin.getPlayerData().put(event.getPlayer().getUniqueId(), new PlayerData(plugin.getLocations(event.getPlayer(), event.getPlayer().getEyeLocation())));
+        PlayerData playerData = new PlayerData(plugin.getLocations(event.getPlayer(), event.getPlayer().getEyeLocation()));
+        playerData.setCallable(new RayTraceCallable(playerData));
+        plugin.getPlayerData().put(event.getPlayer().getUniqueId(), playerData);
     }
 
     @EventHandler

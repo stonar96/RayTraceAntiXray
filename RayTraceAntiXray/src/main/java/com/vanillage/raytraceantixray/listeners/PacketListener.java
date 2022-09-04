@@ -10,6 +10,7 @@ import com.comphenix.protocol.reflect.StructureModifier;
 import com.vanillage.raytraceantixray.RayTraceAntiXray;
 import com.vanillage.raytraceantixray.data.ChunkBlocks;
 import com.vanillage.raytraceantixray.data.PlayerData;
+import com.vanillage.raytraceantixray.tasks.RayTraceCallable;
 
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -33,6 +34,7 @@ public final class PacketListener extends PacketAdapter {
 
                 if (!location.getWorld().equals(playerData.getLocations().get(0).getWorld())) {
                     playerData = new PlayerData(plugin.getLocations(event.getPlayer(), location));
+                    playerData.setCallable(new RayTraceCallable(playerData));
                     plugin.getPlayerData().put(event.getPlayer().getUniqueId(), playerData);
                 }
 
@@ -57,6 +59,7 @@ public final class PacketListener extends PacketAdapter {
                 }
 
                 playerData = new PlayerData(plugin.getLocations(event.getPlayer(), location));
+                playerData.setCallable(new RayTraceCallable(playerData));
                 plugin.getPlayerData().put(event.getPlayer().getUniqueId(), playerData);
             }
 
