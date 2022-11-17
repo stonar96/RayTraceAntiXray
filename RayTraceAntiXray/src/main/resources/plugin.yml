@@ -1,6 +1,6 @@
 name: RayTraceAntiXray
 main: com.vanillage.raytraceantixray.RayTraceAntiXray
-version: 1.9.2
+version: 1.9.3
 api-version: 1.19
 description: Paper plugin for server-side async multithreaded ray tracing to hide ores that are exposed to air using Paper Anti-Xray engine-mode 1.
 load: STARTUP
@@ -8,6 +8,6 @@ depend: [ProtocolLib]
 commands:
   raytraceantixray:
     description: All commands for RayTraceAntiXray.
-    usage: '§cUsage: /<command> <timings <on, off>>'
+    usage: '§cUsage: /<command> timings (on|off)'
     permission: raytraceantixray.command.raytraceantixray
     permission-message: §cYou don't have permissions.
