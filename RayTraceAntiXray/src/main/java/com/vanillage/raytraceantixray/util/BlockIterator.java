@@ -23,16 +23,15 @@ public final class BlockIterator implements Iterator<BlockPos> {
     private double tDeltaX;
     private double tDeltaY;
     private double tDeltaZ;
-    private final MutableBlockPos ref; // This implementation always returns ref to avoid garbage. Can easily be changed if needed.
+    private MutableBlockPos ref = new MutableBlockPos(); // This implementation always returns ref or refSwap to avoid garbage. Can easily be changed if needed.
+    private MutableBlockPos refSwap = new MutableBlockPos();
     private BlockPos next;
 
     public BlockIterator(Vector start, Vector end) {
-        ref = new MutableBlockPos();
         initialize(start, end);
     }
 
     public BlockIterator(Vector start, Vector direction, double distance) {
-        ref = new MutableBlockPos();
         initialize(start, direction, distance);
     }
 
@@ -154,6 +153,10 @@ public final class BlockIterator implements Iterator<BlockPos> {
             throw new NoSuchElementException();
         }
 
+        MutableBlockPos temp = ref;
+        ref = refSwap;
+        refSwap = temp;
+        this.next = ref;
         calculateNext();
         return next;
     }
