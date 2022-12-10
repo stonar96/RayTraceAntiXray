@@ -11,7 +11,8 @@ import io.papermc.paper.configuration.WorldConfiguration;
 import io.papermc.paper.configuration.type.EngineMode;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.resources.ResourceLocation;
@@ -95,7 +96,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             List<BlockState> presetBlockStateList = new LinkedList<>();
 
             for (String id : paperWorldConfig.hiddenBlocks) {
-                Block block = Registry.BLOCK.getOptional(new ResourceLocation(id)).orElse(null);
+                Block block = BuiltInRegistries.BLOCK.getOptional(new ResourceLocation(id)).orElse(null);
 
                 if (block != null && !(block instanceof EntityBlock)) {
                     toObfuscate.add(id);
@@ -126,7 +127,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         }
 
         for (String id : toObfuscate) {
-            Block block = Registry.BLOCK.getOptional(new ResourceLocation(id)).orElse(null);
+            Block block = BuiltInRegistries.BLOCK.getOptional(new ResourceLocation(id)).orElse(null);
 
             // Don't obfuscate air because air causes unnecessary block updates and causes block updates to fail in the void
             if (block != null && !block.defaultBlockState().isAir()) {
@@ -143,7 +144,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             traceGlobal = new boolean[Block.BLOCK_STATE_REGISTRY.size()];
 
             for (String id : toTrace) {
-                Block block = Registry.BLOCK.getOptional(new ResourceLocation(id)).orElse(null);
+                Block block = BuiltInRegistries.BLOCK.getOptional(new ResourceLocation(id)).orElse(null);
 
                 // Don't obfuscate air because air causes unnecessary block updates and causes block updates to fail in the void
                 if (block != null && !block.defaultBlockState().isAir()) {
@@ -156,7 +157,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             }
         }
 
-        EmptyLevelChunk emptyChunk = new EmptyLevelChunk(level, new ChunkPos(0, 0), MinecraftServer.getServer().registryAccess().registryOrThrow(Registry.BIOME_REGISTRY).getHolderOrThrow(Biomes.PLAINS));
+        EmptyLevelChunk emptyChunk = new EmptyLevelChunk(level, new ChunkPos(0, 0), MinecraftServer.getServer().registryAccess().registryOrThrow(Registries.BIOME).getHolderOrThrow(Biomes.PLAINS));
         BlockPos zeroPos = new BlockPos(0, 0, 0);
 
         for (int i = 0; i < solidGlobal.length; i++) {

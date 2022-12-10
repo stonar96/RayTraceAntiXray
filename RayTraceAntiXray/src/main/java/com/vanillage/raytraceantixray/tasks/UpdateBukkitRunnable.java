@@ -2,7 +2,7 @@ package com.vanillage.raytraceantixray.tasks;
 
 import java.util.Queue;
 
-import org.bukkit.craftbukkit.v1_19_R1.CraftWorld;
+import org.bukkit.craftbukkit.v1_19_R2.CraftWorld;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import com.destroystokyo.paper.antixray.ChunkPacketBlockController;
