@@ -63,9 +63,10 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
     private final LevelChunkSection[] emptyNearbyChunkSections = {EMPTY_SECTION, EMPTY_SECTION, EMPTY_SECTION, EMPTY_SECTION};
     public final boolean rayTraceThirdPerson;
     public final double rayTraceDistance;
+    public final boolean rehideBlocks;
     private final int maxBlockHeightUpdatePosition;
 
-    public ChunkPacketBlockControllerAntiXray(RayTraceAntiXray plugin, boolean rayTraceThirdPerson, double rayTraceDistance, int maxRayTraceBlockCountPerChunk, Iterable<? extends String> toTrace, Level level, Executor executor) {
+    public ChunkPacketBlockControllerAntiXray(RayTraceAntiXray plugin, boolean rayTraceThirdPerson, double rayTraceDistance, int maxRayTraceBlockCountPerChunk, boolean rehideBlocks, Iterable<? extends String> toTrace, Level level, Executor executor) {
         this.plugin = plugin;
         this.executor = executor;
         WorldConfiguration.Anticheat.AntiXray paperWorldConfig = level.paperConfig().anticheat.antiXray;
@@ -76,6 +77,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         this.rayTraceThirdPerson = rayTraceThirdPerson;
         this.rayTraceDistance = rayTraceDistance;
         this.maxRayTraceBlockCountPerChunk = maxRayTraceBlockCountPerChunk;
+        this.rehideBlocks = rehideBlocks;
         List<String> toObfuscate;
 
         if (engineMode == EngineMode.HIDE) {
@@ -283,7 +285,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                 return (int) ((Integer.toUnsignedLong(state) * numberOfBlocks) >>> 32);
             }
         };
-        Collection<BlockPos> blocks = new HashSet<>();
+        Map<BlockPos, Boolean> blocks = new HashMap<>();
 
         for (int chunkSectionIndex = 0; chunkSectionIndex <= maxChunkSectionIndex; chunkSectionIndex++) {
             if (chunkPacketInfoAntiXray.isWritten(chunkSectionIndex) && chunkPacketInfoAntiXray.getPresetValues(chunkSectionIndex) != null) {
@@ -404,7 +406,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         chunkPacketInfoAntiXray.getChunkPacket().setReady(true);
     }
 
-    private void obfuscateLayer(ChunkPos chunkPos, int minSection, int chunkSectionIndex, int y, BitStorageReader bitStorageReader, BitStorageWriter bitStorageWriter, boolean[] solid, boolean[] obfuscate, boolean[] trace, int[] presetBlockStateBits, boolean[][] current, boolean[][] next, boolean[][] nextNext, boolean[][] traceCache, LevelChunkSection[] nearbyChunkSections, IntSupplier random, Collection<? super BlockPos> blocks) {
+    private void obfuscateLayer(ChunkPos chunkPos, int minSection, int chunkSectionIndex, int y, BitStorageReader bitStorageReader, BitStorageWriter bitStorageWriter, boolean[] solid, boolean[] obfuscate, boolean[] trace, int[] presetBlockStateBits, boolean[][] current, boolean[][] next, boolean[][] nextNext, boolean[][] traceCache, LevelChunkSection[] nearbyChunkSections, IntSupplier random, Map<? super BlockPos, ? super Boolean> blocks) {
         int minX = chunkPos.getMinBlockX();
         int minZ = chunkPos.getMinBlockZ();
         int realY = (chunkSectionIndex + minSection << 4) + y;
@@ -414,7 +416,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         if (nextNext[0][0] = !solid[bits]) {
             if (traceCache[0][0] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                 bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                blocks.add(new BlockPos(minX + 0, realY, minZ + 0));
+                blocks.put(new BlockPos(minX + 0, realY, minZ + 0), true);
             } else {
                 bitStorageWriter.skip();
             }
@@ -425,7 +427,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             if (current[0][0] || isTransparent(nearbyChunkSections[2], 0, y, 15) || isTransparent(nearbyChunkSections[0], 15, y, 0)) {
                 if (traceCache[0][0] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                     bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                    blocks.add(new BlockPos(minX + 0, realY, minZ + 0));
+                    blocks.put(new BlockPos(minX + 0, realY, minZ + 0), true);
                 } else {
                     bitStorageWriter.skip();
                 }
@@ -451,7 +453,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             if (nextNext[0][x] = !solid[bits]) {
                 if (traceCache[0][x] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                     bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                    blocks.add(new BlockPos(minX + x, realY, minZ + 0));
+                    blocks.put(new BlockPos(minX + x, realY, minZ + 0), true);
                 } else {
                     bitStorageWriter.skip();
                 }
@@ -463,7 +465,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                 if (current[0][x] || isTransparent(nearbyChunkSections[2], x, y, 15)) {
                     if (traceCache[0][x] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                         bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                        blocks.add(new BlockPos(minX + x, realY, minZ + 0));
+                        blocks.put(new BlockPos(minX + x, realY, minZ + 0), true);
                     } else {
                         bitStorageWriter.skip();
                     }
@@ -489,7 +491,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         if (nextNext[0][15] = !solid[bits]) {
             if (traceCache[0][15] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                 bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                blocks.add(new BlockPos(minX + 15, realY, minZ + 0));
+                blocks.put(new BlockPos(minX + 15, realY, minZ + 0), true);
             } else {
                 bitStorageWriter.skip();
             }
@@ -500,7 +502,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             if (current[0][15] || isTransparent(nearbyChunkSections[2], 15, y, 15) || isTransparent(nearbyChunkSections[1], 0, y, 0)) {
                 if (traceCache[0][15] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                     bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                    blocks.add(new BlockPos(minX + 15, realY, minZ + 0));
+                    blocks.put(new BlockPos(minX + 15, realY, minZ + 0), true);
                 } else {
                     bitStorageWriter.skip();
                 }
@@ -527,7 +529,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             if (nextNext[z][0] = !solid[bits]) {
                 if (traceCache[z][0] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                     bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                    blocks.add(new BlockPos(minX + 0, realY, minZ + z));
+                    blocks.put(new BlockPos(minX + 0, realY, minZ + z), true);
                 } else {
                     bitStorageWriter.skip();
                 }
@@ -539,7 +541,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                 if (current[z][0] || isTransparent(nearbyChunkSections[0], 15, y, z)) {
                     if (traceCache[z][0] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                         bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                        blocks.add(new BlockPos(minX + 0, realY, minZ + z));
+                        blocks.put(new BlockPos(minX + 0, realY, minZ + z), true);
                     } else {
                         bitStorageWriter.skip();
                     }
@@ -565,7 +567,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                 if (nextNext[z][x] = !solid[bits]) {
                     if (traceCache[z][x] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                         bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                        blocks.add(new BlockPos(minX + x, realY, minZ + z));
+                        blocks.put(new BlockPos(minX + x, realY, minZ + z), true);
                     } else {
                         bitStorageWriter.skip();
                     }
@@ -578,7 +580,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                     if (current[z][x]) {
                         if (traceCache[z][x] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                             bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                            blocks.add(new BlockPos(minX + x, realY, minZ + z));
+                            blocks.put(new BlockPos(minX + x, realY, minZ + z), true);
                         } else {
                             bitStorageWriter.skip();
                         }
@@ -604,7 +606,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             if (nextNext[z][15] = !solid[bits]) {
                 if (traceCache[z][15] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                     bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                    blocks.add(new BlockPos(minX + 15, realY, minZ + z));
+                    blocks.put(new BlockPos(minX + 15, realY, minZ + z), true);
                 } else {
                     bitStorageWriter.skip();
                 }
@@ -616,7 +618,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                 if (current[z][15] || isTransparent(nearbyChunkSections[1], 0, y, z)) {
                     if (traceCache[z][15] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                         bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                        blocks.add(new BlockPos(minX + 15, realY, minZ + z));
+                        blocks.put(new BlockPos(minX + 15, realY, minZ + z), true);
                     } else {
                         bitStorageWriter.skip();
                     }
@@ -642,7 +644,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         if (nextNext[15][0] = !solid[bits]) {
             if (traceCache[15][0] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                 bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                blocks.add(new BlockPos(minX + 0, realY, minZ + 15));
+                blocks.put(new BlockPos(minX + 0, realY, minZ + 15), true);
             } else {
                 bitStorageWriter.skip();
             }
@@ -653,7 +655,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             if (current[15][0] || isTransparent(nearbyChunkSections[3], 0, y, 0) || isTransparent(nearbyChunkSections[0], 15, y, 15)) {
                 if (traceCache[15][0] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                     bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                    blocks.add(new BlockPos(minX + 0, realY, minZ + 15));
+                    blocks.put(new BlockPos(minX + 0, realY, minZ + 15), true);
                 } else {
                     bitStorageWriter.skip();
                 }
@@ -679,7 +681,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             if (nextNext[15][x] = !solid[bits]) {
                 if (traceCache[15][x] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                     bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                    blocks.add(new BlockPos(minX + x, realY, minZ + 15));
+                    blocks.put(new BlockPos(minX + x, realY, minZ + 15), true);
                 } else {
                     bitStorageWriter.skip();
                 }
@@ -691,7 +693,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                 if (current[15][x] || isTransparent(nearbyChunkSections[3], x, y, 0)) {
                     if (traceCache[15][x] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                         bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                        blocks.add(new BlockPos(minX + x, realY, minZ + 15));
+                        blocks.put(new BlockPos(minX + x, realY, minZ + 15), true);
                     } else {
                         bitStorageWriter.skip();
                     }
@@ -717,7 +719,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         if (nextNext[15][15] = !solid[bits]) {
             if (traceCache[15][15] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                 bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                blocks.add(new BlockPos(minX + 15, realY, minZ + 15));
+                blocks.put(new BlockPos(minX + 15, realY, minZ + 15), true);
             } else {
                 bitStorageWriter.skip();
             }
@@ -728,7 +730,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             if (current[15][15] || isTransparent(nearbyChunkSections[3], 15, y, 0) || isTransparent(nearbyChunkSections[1], 0, y, 15)) {
                 if (traceCache[15][15] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                     bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                    blocks.add(new BlockPos(minX + 15, realY, minZ + 15));
+                    blocks.put(new BlockPos(minX + 15, realY, minZ + 15), true);
                 } else {
                     bitStorageWriter.skip();
                 }

@@ -9,13 +9,12 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.bukkit.Location;
 
-import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 
 public final class PlayerData {
     private volatile List<? extends Location> locations;
     private final Map<ChunkPos, ChunkBlocks> chunks = new ConcurrentHashMap<>();
-    private final Queue<BlockPos> result = new ConcurrentLinkedQueue<>();
+    private final Queue<Result> resultQueue = new ConcurrentLinkedQueue<>();
     private Callable<?> callable;
 
     public PlayerData(List<? extends Location> locations) {
@@ -34,8 +33,8 @@ public final class PlayerData {
         return chunks;
     }
 
-    public Queue<BlockPos> getResult() {
-        return result;
+    public Queue<Result> getResultQueue() {
+        return resultQueue;
     }
 
     public Callable<?> getCallable() {

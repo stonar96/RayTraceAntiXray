@@ -12,6 +12,7 @@
 #       ray-trace-third-person: true            # Whether or not to ray trace third person back and front view. Note that this is even more resource intensive.
 #       ray-trace-distance: 64.0                # Maximum distance between player (eye location) and block (center) for ray tracing.
 #       max-ray-trace-block-count-per-chunk: 30 # Maximum number of ray traced blocks per chunk. Counting starts at the bottom of the world and increases upwards.
+#       rehide-blocks: true                     # Whether or not to rehide blocks when they were visible to a player but are no longer visible. If false, blocks are only rehidden when the chunk is resent.
 #       ray-trace-blocks:                       # Blocks that are hidden and ray traced. The hidden-blocks specified in the Paper config file are only hidden if they aren't exposed to transparent blocks. If this list is empty, the hidden-blocks specified in the Paper config file are used.
 #       - diamond_ore
 #       - deepslate_diamond_ore
@@ -33,4 +34,5 @@ world-settings:
       ray-trace-third-person: false
       ray-trace-distance: 80.0
       max-ray-trace-block-count-per-chunk: 100
+      rehide-blocks: false
       ray-trace-blocks: []

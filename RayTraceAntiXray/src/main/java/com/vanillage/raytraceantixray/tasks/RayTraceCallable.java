@@ -14,6 +14,7 @@ import com.destroystokyo.paper.antixray.ChunkPacketBlockController;
 import com.vanillage.raytraceantixray.antixray.ChunkPacketBlockControllerAntiXray;
 import com.vanillage.raytraceantixray.data.ChunkBlocks;
 import com.vanillage.raytraceantixray.data.PlayerData;
+import com.vanillage.raytraceantixray.data.Result;
 import com.vanillage.raytraceantixray.util.BlockIterator;
 
 import net.minecraft.core.BlockPos;
@@ -101,84 +102,97 @@ public final class RayTraceCallable implements Callable<Void> {
                 continue;
             }
 
-            Iterator<? extends BlockPos> iterator = chunkBlocks.getBlocks().iterator();
+            Iterator<? extends Entry<? extends BlockPos, Boolean>> iterator = chunkBlocks.getBlocks().entrySet().iterator();
 
             while (iterator.hasNext()) {
-                BlockPos block = iterator.next();
+                Entry<? extends BlockPos, Boolean> blockHidden = iterator.next();
+                BlockPos block = blockHidden.getKey();
                 Vector blockCenter = new Vector(block.getX() + 0.5, block.getY() + 0.5, block.getZ() + 0.5);
+                boolean visible = false;
 
-                if (!(playerVector.distanceSquared(blockCenter) <= rayTraceDistanceSquared)) {
-                    continue;
+                if (playerVector.distanceSquared(blockCenter) <= rayTraceDistanceSquared) {
+                    for (Location location : locations) {
+                        Vector vector = location.toVector();
+                        Vector difference = vector.clone().subtract(blockCenter);
+
+                        // Actually, we should check all 8 block corners here instead of the block center.
+                        if (!(difference.dot(location.getDirection()) <= 0.)) {
+                            continue;
+                        }
+
+                        Iterator<BlockPos> blockIterator = this.blockIterator.initialize(blockCenter, vector);
+                        visible = true;
+
+                        while (blockIterator.hasNext()) {
+                            BlockPos rayBlock = blockIterator.next();
+                            ChunkPos chunkPos = new ChunkPos(rayBlock);
+                            ChunkBlocks rayChunkBlocks = playerData.getChunks().get(chunkPos);
+
+                            if (rayChunkBlocks == null) {
+                                visible = false;
+                                break;
+                            }
+
+                            LevelChunk rayChunk = rayChunkBlocks.getChunk();
+
+                            if (rayChunk == null) {
+                                playerData.getChunks().remove(chunkPos, rayChunkBlocks);
+                                visible = false;
+                                break;
+                            }
+
+                            int sectionY = rayBlock.getY() >> 4;
+
+                            if (sectionY < rayChunk.getMinSection() || sectionY > rayChunk.getMaxSection() - 1) {
+                                continue;
+                            }
+
+                            LevelChunkSection section = rayChunk.getSections()[sectionY - rayChunk.getMinSection()];
+
+                            if (section == null || section.hasOnlyAir()) { // Sections aren't null anymore.
+                                continue;
+                            }
+
+                            BlockState blockState;
+
+                            // synchronized (section.getStates()) {
+                            //     try {
+                            //         section.getStates().acquire();
+                                    try {
+                                        blockState = section.getBlockState(rayBlock.getX() & 15, rayBlock.getY() & 15, rayBlock.getZ() & 15);
+                                    } catch (MissingPaletteEntryException e) {
+                                        blockState = Blocks.AIR.defaultBlockState();
+                                    }
+                            //     } finally {
+                            //         section.getStates().release();
+                            //     }
+                            // }
+
+                            if (solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(blockState)] && checkNearbyBlocks(block.getX(), block.getY(), block.getZ(), rayBlock.getX(), rayBlock.getY(), rayBlock.getZ(), difference, section, chunkPos.x, sectionY, chunkPos.z, playerData, solidGlobal)) {
+                                visible = false;
+                                break;
+                            }
+                        }
+
+                        if (visible) {
+                            break;
+                        }
+                    }
                 }
 
-                for (Location location : locations) {
-                    Vector vector = location.toVector();
-                    Vector difference = vector.clone().subtract(blockCenter);
+                if (visible) {
+                    if (blockHidden.getValue()) {
+                        playerData.getResultQueue().add(new Result(block, true));
 
-                    // Actually, we should check all 8 block corners here instead of the block center.
-                    if (!(difference.dot(location.getDirection()) <= 0.)) {
-                        continue;
-                    }
-
-                    Iterator<BlockPos> blockIterator = this.blockIterator.initialize(blockCenter, vector);
-                    boolean update = true;
-
-                    while (blockIterator.hasNext()) {
-                        BlockPos rayBlock = blockIterator.next();
-                        ChunkPos chunkPos = new ChunkPos(rayBlock);
-                        ChunkBlocks rayChunkBlocks = playerData.getChunks().get(chunkPos);
-
-                        if (rayChunkBlocks == null) {
-                            update = false;
-                            break;
-                        }
-
-                        LevelChunk rayChunk = rayChunkBlocks.getChunk();
-
-                        if (rayChunk == null) {
-                            playerData.getChunks().remove(chunkPos, rayChunkBlocks);
-                            update = false;
-                            break;
-                        }
-
-                        int sectionY = rayBlock.getY() >> 4;
-
-                        if (sectionY < rayChunk.getMinSection() || sectionY > rayChunk.getMaxSection() - 1) {
-                            continue;
-                        }
-
-                        LevelChunkSection section = rayChunk.getSections()[sectionY - rayChunk.getMinSection()];
-
-                        if (section == null || section.hasOnlyAir()) { // Sections aren't null anymore.
-                            continue;
-                        }
-
-                        BlockState blockState;
-
-                        // synchronized (section.getStates()) {
-                        //     try {
-                        //         section.getStates().acquire();
-                                try {
-                                    blockState = section.getBlockState(rayBlock.getX() & 15, rayBlock.getY() & 15, rayBlock.getZ() & 15);
-                                } catch (MissingPaletteEntryException e) {
-                                    blockState = Blocks.AIR.defaultBlockState();
-                                }
-                        //     } finally {
-                        //         section.getStates().release();
-                        //     }
-                        // }
-
-                        if (solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(blockState)] && checkNearbyBlocks(block.getX(), block.getY(), block.getZ(), rayBlock.getX(), rayBlock.getY(), rayBlock.getZ(), difference, section, chunkPos.x, sectionY, chunkPos.z, playerData, solidGlobal)) {
-                            update = false;
-                            break;
+                        if (!chunkPacketBlockControllerAntiXray.rehideBlocks) {
+                            iterator.remove();
+                        } else {
+                            blockHidden.setValue(false);
                         }
                     }
-
-                    if (update) {
-                        playerData.getResult().add(block);
-                        iterator.remove();
-                        break;
-                    }
+                } else if (!blockHidden.getValue()) {
+                    playerData.getResultQueue().add(new Result(block, false));
+                    blockHidden.setValue(true);
                 }
             }
         }
@@ -417,7 +431,8 @@ public final class RayTraceCallable implements Callable<Void> {
         return blockState;
     }
 
-    private static interface IntArrayConsumer extends Consumer<int[]> {
+    @FunctionalInterface
+    private interface IntArrayConsumer extends Consumer<int[]> {
 
     }
 }
