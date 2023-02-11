@@ -268,7 +268,31 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         bitStorageWriter.setBuffer(chunkPacketInfoAntiXray.getBuffer());
         int numberOfBlocks = presetBlockStateBits.length;
         // Keep the lambda expressions as simple as possible. They are used very frequently.
-        IntSupplier random = numberOfBlocks == 1 ? (() -> 0) : new IntSupplier() {
+        LayeredIntSupplier random = numberOfBlocks == 1 ? (() -> 0) : engineMode == EngineMode.OBFUSCATE_LAYER ? new LayeredIntSupplier() {
+            // engine-mode: 3
+            private int state;
+            private int next;
+
+            {
+                while ((state = ThreadLocalRandom.current().nextInt()) == 0) ;
+            }
+
+            @Override
+            public void nextLayer() {
+                // https://en.wikipedia.org/wiki/Xorshift
+                state ^= state << 13;
+                state ^= state >>> 17;
+                state ^= state << 5;
+                // https://www.pcg-random.org/posts/bounded-rands.html
+                next = (int) ((Integer.toUnsignedLong(state) * numberOfBlocks) >>> 32);
+            }
+
+            @Override
+            public int getAsInt() {
+                return next;
+            }
+        } : new LayeredIntSupplier() {
+            // engine-mode: 2
             private int state;
 
             {
@@ -357,6 +381,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                     current = next;
                     next = nextNext;
                     nextNext = temp;
+                    random.nextLayer();
                     obfuscateLayer(chunk.getPos(), chunk.getMinSection(), chunkSectionIndex, y, bitStorageReader, bitStorageWriter, solidTemp, obfuscateTemp, traceTemp, presetBlockStateBitsTemp, current, next, nextNext, traceCache, nearbyChunkSections, random, blocks);
                 }
 
@@ -380,6 +405,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                     // There is nothing to read anymore
                     bitStorageReader.setBits(0);
                     solid[0] = true;
+                    random.nextLayer();
                     obfuscateLayer(chunk.getPos(), chunk.getMinSection(), chunkSectionIndex, 15, bitStorageReader, bitStorageWriter, solid, obfuscateTemp, traceTemp, presetBlockStateBitsTemp, current, next, nextNext, traceCache, nearbyChunkSections, random, blocks);
                 } else {
                     // If not, initialize the reader and other stuff for the chunk section above to obfuscate the upper layer of the current chunk section
@@ -392,6 +418,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                     current = next;
                     next = nextNext;
                     nextNext = temp;
+                    random.nextLayer();
                     obfuscateLayer(chunk.getPos(), chunk.getMinSection(), chunkSectionIndex, 15, bitStorageReader, bitStorageWriter, solidTemp, obfuscateTemp, traceTemp, presetBlockStateBitsTemp, current, next, nextNext, traceCache, nearbyChunkSections, random, blocks);
                 }
 
@@ -842,6 +869,13 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
 
         if (blockState != null && obfuscateGlobal[GLOBAL_BLOCKSTATE_PALETTE.idFor(blockState)]) {
             ((ServerLevel) level).getChunkSource().blockChanged(blockPos);
+        }
+    }
+
+    @FunctionalInterface
+    private interface LayeredIntSupplier extends IntSupplier {
+        default void nextLayer() {
+
         }
     }
 }

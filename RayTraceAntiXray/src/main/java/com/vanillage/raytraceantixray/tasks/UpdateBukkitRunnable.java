@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.World.Environment;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
@@ -54,6 +55,10 @@ public final class UpdateBukkitRunnable extends BukkitRunnable {
 
                 if (result.isVisible()) {
                     blockData = block.getBlockData();
+                } else if (world.getEnvironment() == Environment.NETHER) {
+                    blockData = Material.NETHERRACK.createBlockData();
+                } else if (world.getEnvironment() == Environment.THE_END) {
+                    blockData = Material.END_STONE.createBlockData();
                 } else if (block.getY() < 0) {
                     blockData = Material.DEEPSLATE.createBlockData();
                 } else {
