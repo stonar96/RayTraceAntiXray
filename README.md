@@ -20,4 +20,4 @@ Paper Anti-Xray can't hide ores that are exposed to air in caves for example (se
 ## Demo
 ![RayTraceAntiXray](https://user-images.githubusercontent.com/18699205/112784731-aed75e00-9052-11eb-92d6-b0dd4af79290.gif)
 ## License
-See [LICENSE](LICENSE) file. There's one additional rule: Please don't (re)distribute compiled binary versions of this project or versions containing compiled parts of this project.
+The [LICENSE](LICENSE) file applies to the **source code** of this project. Please don't (re)distribute **compiled binary versions** of this project or derivative works that are directly usable as intended by this project. Shading or using this project as a library for other purposes is permitted.

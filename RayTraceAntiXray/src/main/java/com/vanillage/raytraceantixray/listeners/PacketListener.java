@@ -10,6 +10,7 @@ import com.comphenix.protocol.reflect.StructureModifier;
 import com.vanillage.raytraceantixray.RayTraceAntiXray;
 import com.vanillage.raytraceantixray.data.ChunkBlocks;
 import com.vanillage.raytraceantixray.data.PlayerData;
+import com.vanillage.raytraceantixray.data.VectorialLocation;
 import com.vanillage.raytraceantixray.tasks.RayTraceCallable;
 
 import net.minecraft.world.level.ChunkPos;
@@ -32,8 +33,8 @@ public final class PacketListener extends PacketAdapter {
             if (chunkBlocks == null) {
                 Location location = event.getPlayer().getEyeLocation();
 
-                if (!location.getWorld().equals(playerData.getLocations().get(0).getWorld())) {
-                    playerData = new PlayerData(plugin.getLocations(event.getPlayer(), location));
+                if (!location.getWorld().equals(playerData.getLocations()[0].getWorld())) {
+                    playerData = new PlayerData(plugin.getLocations(event.getPlayer(), new VectorialLocation(location)));
                     playerData.setCallable(new RayTraceCallable(playerData));
                     plugin.getPlayerData().put(event.getPlayer().getUniqueId(), playerData);
                 }
@@ -48,7 +49,7 @@ public final class PacketListener extends PacketAdapter {
                 return;
             }
 
-            if (!chunk.getLevel().getWorld().equals(playerData.getLocations().get(0).getWorld())) {
+            if (!chunk.getLevel().getWorld().equals(playerData.getLocations()[0].getWorld())) {
                 Location location = event.getPlayer().getEyeLocation();
 
                 if (!chunk.getLevel().getWorld().equals(location.getWorld())) {
@@ -58,15 +59,15 @@ public final class PacketListener extends PacketAdapter {
                     return;
                 }
 
-                playerData = new PlayerData(plugin.getLocations(event.getPlayer(), location));
+                playerData = new PlayerData(plugin.getLocations(event.getPlayer(), new VectorialLocation(location)));
                 playerData.setCallable(new RayTraceCallable(playerData));
                 plugin.getPlayerData().put(event.getPlayer().getUniqueId(), playerData);
             }
 
-            playerData.getChunks().put(chunk.getPos(), chunkBlocks);
+            playerData.getChunks().put(chunkBlocks.getKey(), chunkBlocks);
         } else if (event.getPacketType() == PacketType.Play.Server.UNLOAD_CHUNK) {
             StructureModifier<Integer> integers = event.getPacket().getIntegers();
-            plugin.getPlayerData().get(event.getPlayer().getUniqueId()).getChunks().remove(new ChunkPos(integers.read(0), integers.read(1)));
+            plugin.getPlayerData().get(event.getPlayer().getUniqueId()).getChunks().remove(ChunkPos.asLong(integers.read(0), integers.read(1)));
         }
     }
 }

@@ -1,40 +1,35 @@
 package com.vanillage.raytraceantixray.data;
 
-import java.util.List;
-import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import org.bukkit.Location;
+import org.cliffc.high_scale_lib.NonBlockingHashMapLong;
 
-import net.minecraft.world.level.ChunkPos;
-
-public final class PlayerData {
-    private volatile List<? extends Location> locations;
-    private final Map<ChunkPos, ChunkBlocks> chunks = new ConcurrentHashMap<>();
-    private final Queue<Result> resultQueue = new ConcurrentLinkedQueue<>();
+public final class PlayerData implements Callable<Object> {
+    private volatile VectorialLocation[] locations;
+    private final NonBlockingHashMapLong<ChunkBlocks> chunks = new NonBlockingHashMapLong<>();
+    private final Queue<Result> results = new ConcurrentLinkedQueue<>();
     private Callable<?> callable;
 
-    public PlayerData(List<? extends Location> locations) {
+    public PlayerData(VectorialLocation[] locations) {
         this.locations = locations;
     }
 
-    public List<? extends Location> getLocations() {
+    public VectorialLocation[] getLocations() {
         return locations;
     }
 
-    public void setLocations(List<? extends Location> locations) {
+    public void setLocations(VectorialLocation[] locations) {
         this.locations = locations;
     }
 
-    public Map<ChunkPos, ChunkBlocks> getChunks() {
+    public NonBlockingHashMapLong<ChunkBlocks> getChunks() {
         return chunks;
     }
 
-    public Queue<Result> getResultQueue() {
-        return resultQueue;
+    public Queue<Result> getResults() {
+        return results;
     }
 
     public Callable<?> getCallable() {
@@ -43,5 +38,10 @@ public final class PlayerData {
 
     public void setCallable(Callable<?> callable) {
         this.callable = callable;
+    }
+
+    @Override
+    public Object call() throws Exception {
+        return callable.call();
     }
 }

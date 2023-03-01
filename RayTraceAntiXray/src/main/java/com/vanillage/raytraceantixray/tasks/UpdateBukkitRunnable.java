@@ -1,22 +1,17 @@
 package com.vanillage.raytraceantixray.tasks;
 
-import java.util.Map.Entry;
 import java.util.Queue;
-import java.util.UUID;
 
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.World.Environment;
-import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
-import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import com.vanillage.raytraceantixray.RayTraceAntiXray;
 import com.vanillage.raytraceantixray.data.PlayerData;
 import com.vanillage.raytraceantixray.data.Result;
-
-import net.minecraft.core.BlockPos;
 
 public final class UpdateBukkitRunnable extends BukkitRunnable {
     private final RayTraceAntiXray plugin;
@@ -27,46 +22,41 @@ public final class UpdateBukkitRunnable extends BukkitRunnable {
 
     @Override
     public void run() {
-        for (Entry<UUID, PlayerData> entry : plugin.getPlayerData().entrySet()) {
-            Player player = plugin.getServer().getPlayer(entry.getKey());
+        plugin.getServer().getOnlinePlayers().forEach(p -> {
+            PlayerData playerData = plugin.getPlayerData().get(p.getUniqueId());
+            World world = playerData.getLocations()[0].getWorld();
 
-            if (player == null) {
-                continue;
+            if (!p.getWorld().equals(world)) {
+                return;
             }
 
-            PlayerData playerData = entry.getValue();
-            World world = playerData.getLocations().get(0).getWorld();
+            Queue<Result> results = playerData.getResults();
 
-            if (!player.getWorld().equals(world)) {
-                continue;
-            }
+            for (Result result = results.poll(); result != null; result = results.poll()) {
+                int x = result.getX();
+                int z = result.getZ();
 
-            Queue<Result> resultQueue = playerData.getResultQueue();
-
-            for (Result result = resultQueue.poll(); result != null; result = resultQueue.poll()) {
-                BlockPos resultBlock = result.getBlock();
-                Block block = world.getBlockAt(resultBlock.getX(), resultBlock.getY(), resultBlock.getZ());
-
-                if (!block.getChunk().isLoaded()) {
+                if (!world.isChunkLoaded(x >> 4, z >> 4)) {
                     continue;
                 }
 
+                int y = result.getY();
                 BlockData blockData;
 
                 if (result.isVisible()) {
-                    blockData = block.getBlockData();
+                    blockData = world.getBlockData(x, y, z);
                 } else if (world.getEnvironment() == Environment.NETHER) {
                     blockData = Material.NETHERRACK.createBlockData();
                 } else if (world.getEnvironment() == Environment.THE_END) {
                     blockData = Material.END_STONE.createBlockData();
-                } else if (block.getY() < 0) {
+                } else if (y < 0) {
                     blockData = Material.DEEPSLATE.createBlockData();
                 } else {
                     blockData = Material.STONE.createBlockData();
                 }
 
-                player.sendBlockChange(block.getLocation(), blockData);
+                p.sendBlockChange(new Location(world, x, y, z), blockData);
             }
-        }
+        });
     }
 }

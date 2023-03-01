@@ -1,9 +1,6 @@
 package com.vanillage.raytraceantixray;
 
 import java.io.File;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.UUID;
@@ -12,7 +9,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.craftbukkit.v1_19_R2.CraftWorld;
 import org.bukkit.craftbukkit.v1_19_R2.entity.CraftEntity;
@@ -27,6 +23,7 @@ import com.vanillage.raytraceantixray.antixray.ChunkPacketBlockControllerAntiXra
 import com.vanillage.raytraceantixray.commands.RayTraceAntiXrayTabExecutor;
 import com.vanillage.raytraceantixray.data.ChunkBlocks;
 import com.vanillage.raytraceantixray.data.PlayerData;
+import com.vanillage.raytraceantixray.data.VectorialLocation;
 import com.vanillage.raytraceantixray.listeners.PacketListener;
 import com.vanillage.raytraceantixray.listeners.PlayerListener;
 import com.vanillage.raytraceantixray.listeners.WorldListener;
@@ -42,7 +39,7 @@ import net.minecraft.world.phys.Vec3;
 
 public final class RayTraceAntiXray extends JavaPlugin {
     private volatile boolean running = false;
-    private volatile boolean timings = false;
+    private volatile boolean timingsEnabled = false;
     private final Map<ClientboundLevelChunkWithLightPacket, ChunkBlocks> packetChunkBlocksCache = new MapMaker().weakKeys().makeMap();
     private final Map<UUID, PlayerData> playerData = new ConcurrentHashMap<>();
     private ExecutorService executorService;
@@ -107,12 +104,12 @@ public final class RayTraceAntiXray extends JavaPlugin {
         return running;
     }
 
-    public boolean isTimings() {
-        return timings;
+    public boolean isTimingsEnabled() {
+        return timingsEnabled;
     }
 
-    public void setTimings(boolean timings) {
-        this.timings = timings;
+    public void setTimingsEnabled(boolean timingsEnabled) {
+        this.timingsEnabled = timingsEnabled;
     }
 
     public Map<ClientboundLevelChunkWithLightPacket, ChunkBlocks> getPacketChunkBlocksCache() {
@@ -131,23 +128,28 @@ public final class RayTraceAntiXray extends JavaPlugin {
         return ((CraftWorld) world).getHandle().paperConfig().anticheat.antiXray.enabled && ((CraftWorld) world).getHandle().paperConfig().anticheat.antiXray.engineMode == EngineMode.HIDE && getConfig().getBoolean("world-settings." + world.getName() + ".anti-xray.ray-trace", getConfig().getBoolean("world-settings.default.anti-xray.ray-trace"));
     }
 
-    public List<Location> getLocations(Entity entity, Location location) {
+    public VectorialLocation[] getLocations(Entity entity, VectorialLocation location) {
         ChunkPacketBlockController chunkPacketBlockController = ((CraftWorld) location.getWorld()).getHandle().chunkPacketBlockController;
 
         if (chunkPacketBlockController instanceof ChunkPacketBlockControllerAntiXray && ((ChunkPacketBlockControllerAntiXray) chunkPacketBlockController).rayTraceThirdPerson) {
-            Vector direction = location.getDirection();
-            return Arrays.asList(location, move(entity, location, direction), move(entity, location, direction.multiply(-1.)).setDirection(direction));
+            VectorialLocation thirdPersonBackLocation = new VectorialLocation(location.getWorld(), location.getVector().clone(), location.getDirection());
+            VectorialLocation thirdPersonFrontLocation = new VectorialLocation(location);
+            thirdPersonFrontLocation.getDirection().multiply(-1.);
+            return new VectorialLocation[] { location, move(entity, thirdPersonBackLocation), move(entity, thirdPersonFrontLocation) };
         }
 
-        return Collections.singletonList(location);
+        return new VectorialLocation[] { location };
     }
 
-    private Location move(Entity entity, Location location, Vector direction) {
-        return location.clone().subtract(direction.clone().multiply(getMaxZoom(entity, location, direction, 4.)));
+    private VectorialLocation move(Entity entity, VectorialLocation location) {
+        location.getVector().subtract(location.getDirection().clone().multiply(getMaxZoom(entity, location, 4.)));
+        return location;
     }
 
-    private double getMaxZoom(Entity entity, Location location, Vector direction, double maxZoom) {
-        Vec3 position = new Vec3(location.getX(), location.getY(), location.getZ());
+    private double getMaxZoom(Entity entity, VectorialLocation location, double maxZoom) {
+        Vector vector = location.getVector();
+        Vector direction = location.getDirection();
+        Vec3 position = new Vec3(vector.getX(), vector.getY(), vector.getZ());
 
         for (int i = 0; i < 8; i++) {
             float edgeX = (float) ((i & 1) * 2 - 1);
