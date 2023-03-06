@@ -157,7 +157,7 @@ public final class RayTraceCallable implements Callable<Void> {
 
                 if (visible) {
                     if (blockHidden.getValue()) {
-                        playerData.getResults().add(new Result(x, y, z, true));
+                        playerData.getResults().add(new Result(chunkBlocks, block, true));
 
                         if (rehideBlocks) {
                             blockHidden.setValue(false);
@@ -166,7 +166,7 @@ public final class RayTraceCallable implements Callable<Void> {
                         }
                     }
                 } else if (!blockHidden.getValue()) {
-                    playerData.getResults().add(new Result(x, y, z, false));
+                    playerData.getResults().add(new Result(chunkBlocks, block, false));
                     blockHidden.setValue(true);
                 }
             }

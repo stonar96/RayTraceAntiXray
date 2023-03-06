@@ -1,28 +1,24 @@
 package com.vanillage.raytraceantixray.data;
 
+import net.minecraft.core.BlockPos;
+
 public final class Result {
-    private final int x;
-    private final int y;
-    private final int z;
+    private final ChunkBlocks chunkBlocks;
+    private final BlockPos block;
     private final boolean visible;
 
-    public Result(int x, int y, int z, boolean visible) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
+    public Result(ChunkBlocks chunkBlocks, BlockPos block, boolean visible) {
+        this.chunkBlocks = chunkBlocks;
+        this.block = block;
         this.visible = visible;
     }
 
-    public int getX() {
-        return x;
+    public ChunkBlocks getChunkBlocks() {
+        return chunkBlocks;
     }
 
-    public int getY() {
-        return y;
-    }
-
-    public int getZ() {
-        return z;
+    public BlockPos getBlock() {
+        return block;
     }
 
     public boolean isVisible() {
