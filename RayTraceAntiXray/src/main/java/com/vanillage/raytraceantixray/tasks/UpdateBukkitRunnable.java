@@ -4,8 +4,8 @@ import java.util.Queue;
 
 import org.bukkit.World;
 import org.bukkit.World.Environment;
-import org.bukkit.craftbukkit.v1_19_R2.CraftWorld;
-import org.bukkit.craftbukkit.v1_19_R2.entity.CraftPlayer;
+import org.bukkit.craftbukkit.v1_19_R3.CraftWorld;
+import org.bukkit.craftbukkit.v1_19_R3.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
@@ -89,7 +89,7 @@ public final class UpdateBukkitRunnable extends BukkitRunnable {
             return false;
         }
 
-        Channel channel = connection.getConnection().channel;
+        Channel channel = connection.connection.channel;
 
         if (channel == null || !channel.isOpen()) {
             return false;

@@ -3,7 +3,7 @@
   <parent>
     <groupId>com.vanillage.raytraceantixray</groupId>
     <artifactId>raytraceantixray-parent</artifactId>
-    <version>1.10.3</version>
+    <version>1.10.4</version>
   </parent>
   <artifactId>raytraceantixray</artifactId>
   <name>RayTraceAntiXray</name>
@@ -56,7 +56,7 @@
     <dependency>
       <groupId>com.mojang</groupId>
       <artifactId>datafixerupper</artifactId>
-      <version>5.0.28</version>
+      <version>6.0.6</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
