@@ -100,10 +100,12 @@ public final class BlockOcclusionCulling {
                         return false;
                     }
 
+                    section = null;
                     continue;
                 }
 
                 if (sectionY < chunk.getMinSection() || sectionY > chunk.getMaxSection() - 1) {
+                    section = null;
                     continue;
                 }
 
@@ -120,7 +122,13 @@ public final class BlockOcclusionCulling {
             } else if (raySectionY != sectionY) {
                 sectionY = raySectionY;
 
+                if (chunk == null) {
+                    // section = null;
+                    continue;
+                }
+
                 if (sectionY < chunk.getMinSection() || sectionY > chunk.getMaxSection() - 1) {
+                    section = null;
                     continue;
                 }
 
@@ -288,11 +296,7 @@ public final class BlockOcclusionCulling {
                 if (unloadedChunkOccluding) {
                     return true;
                 }
-
-                blockState = AIR;
-            }
-
-            if (blockOcclusionPredicate.test(blockState)) {
+            } else if (blockOcclusionPredicate.test(blockState)) {
                 continue;
             }
 
@@ -309,7 +313,7 @@ public final class BlockOcclusionCulling {
                     return true;
                 }
 
-                blockState = AIR;
+                return false;
             }
 
             if (!blockOcclusionPredicate.test(blockState)) {
