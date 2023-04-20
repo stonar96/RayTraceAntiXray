@@ -17,12 +17,20 @@ import com.vanillage.raytraceantixray.data.Result;
 import com.vanillage.raytraceantixray.data.VectorialLocation;
 import com.vanillage.raytraceantixray.util.BlockIterator;
 import com.vanillage.raytraceantixray.util.BlockOcclusionCulling;
+import com.vanillage.raytraceantixray.util.BlockOcclusionCulling.BlockOcclusionGetter;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.chunk.MissingPaletteEntryException;
 
 public final class RayTraceCallable implements Callable<Void> {
+    private static final BlockState AIR = Blocks.AIR.defaultBlockState();
     private final PlayerData playerData;
+    private final CachedSectionBlockOcclusionGetter cachedSectionblockOcclusionGetter;
     private final BlockOcclusionCulling blockOcclusionCulling;
     private final Collection<ChunkBlocks> chunks;
     private final double rayTraceDistance;
@@ -34,6 +42,7 @@ public final class RayTraceCallable implements Callable<Void> {
 
         if (!(chunkPacketBlockController instanceof ChunkPacketBlockControllerAntiXray)) {
             this.playerData = null;
+            cachedSectionblockOcclusionGetter = null;
             blockOcclusionCulling = null;
             chunks = null;
             rayTraceDistance = 0.;
@@ -43,19 +52,162 @@ public final class RayTraceCallable implements Callable<Void> {
         }
 
         this.playerData = playerData;
+        BlockIterator blockIterator = new BlockIterator(0., 0., 0., 0., 0., 0.);
         NonBlockingHashMapLong<ChunkBlocks> chunks = playerData.getChunks();
         ChunkPacketBlockControllerAntiXray chunkPacketBlockControllerAntiXray = (ChunkPacketBlockControllerAntiXray) chunkPacketBlockController;
         boolean[] solidGlobal = chunkPacketBlockControllerAntiXray.solidGlobal;
-        BlockIterator blockIterator = new BlockIterator(0., 0., 0., 0., 0., 0.);
-        blockOcclusionCulling = new BlockOcclusionCulling(l -> {
-            ChunkBlocks chunkBlocks = chunks.get(l);
+        cachedSectionblockOcclusionGetter = new CachedSectionBlockOcclusionGetter() {
+            private static final boolean UNLOADED_OCCLUDING = true;
+            private LevelChunk chunk;
+            private LevelChunkSection section;
+            private int chunkX;
+            private int sectionY;
+            private int chunkZ;
 
-            if (chunkBlocks == null) {
-                return null;
+            @Override
+            public boolean isOccluding(int x, int y, int z) {
+                int chunkX = x >> 4;
+                int chunkZ = z >> 4;
+
+                if (this.chunkX != chunkX || this.chunkZ != chunkZ) {
+                    ChunkBlocks chunkBlocks = chunks.get(ChunkPos.asLong(chunkX, chunkZ));
+
+                    if (chunkBlocks == null) {
+                        return UNLOADED_OCCLUDING;
+                    }
+
+                    LevelChunk chunk = chunkBlocks.getChunk();
+
+                    if (chunk == null) {
+                        return UNLOADED_OCCLUDING;
+                    }
+
+                    int sectionY = y >> 4;
+
+                    if (sectionY < chunk.getMinSection() || sectionY >= chunk.getMaxSection()) {
+                        return false;
+                    }
+
+                    LevelChunkSection section = chunk.getSections()[sectionY - chunk.getMinSection()];
+                    return section != null && !section.hasOnlyAir() && solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(getBlockState(section, x, y, z))]; // Sections aren't null anymore. Unfortunately, LevelChunkSection#recalcBlockCounts() temporarily resets #nonEmptyBlockCount to 0 due to a Paper optimization.
+                }
+
+                int sectionY = y >> 4;
+
+                if (this.sectionY != sectionY) {
+                    if (chunk == null) {
+                        return UNLOADED_OCCLUDING;
+                    }
+
+                    if (sectionY < chunk.getMinSection() || sectionY >= chunk.getMaxSection()) {
+                        return false;
+                    }
+
+                    LevelChunkSection section = chunk.getSections()[sectionY - chunk.getMinSection()];
+                    return section != null && !section.hasOnlyAir() && solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(getBlockState(section, x, y, z))]; // Sections aren't null anymore. Unfortunately, LevelChunkSection#recalcBlockCounts() temporarily resets #nonEmptyBlockCount to 0 due to a Paper optimization.
+                }
+
+                if (section == null) {
+                    return chunk == null && UNLOADED_OCCLUDING;
+                }
+
+                return solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(getBlockState(section, x, y, z))];
             }
 
-            return chunkBlocks.getChunk();
-        }, b -> solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(b)], blockIterator::initializeNormalized, true, true);
+            @Override
+            public boolean isOccludingRay(int x, int y, int z) {
+                int chunkX = x >> 4;
+                int sectionY = y >> 4;
+                int chunkZ = z >> 4;
+
+                if (this.chunkX != chunkX || this.chunkZ != chunkZ) {
+                    this.chunkX = chunkX;
+                    this.sectionY = sectionY;
+                    this.chunkZ = chunkZ;
+                    ChunkBlocks chunkBlocks = chunks.get(ChunkPos.asLong(chunkX, chunkZ));
+
+                    if (chunkBlocks == null) {
+                        chunk = null;
+                        section = null;
+                        return UNLOADED_OCCLUDING;
+                    }
+
+                    chunk = chunkBlocks.getChunk();
+
+                    if (chunk == null) {
+                        section = null;
+                        return UNLOADED_OCCLUDING;
+                    }
+
+                    if (sectionY < chunk.getMinSection() || sectionY >= chunk.getMaxSection()) {
+                        section = null;
+                        return false;
+                    }
+
+                    section = chunk.getSections()[sectionY - chunk.getMinSection()];
+
+                    if (section == null) { // Sections aren't null anymore.
+                        return false;
+                    }
+
+                    if (section.hasOnlyAir()) { // Unfortunately, LevelChunkSection#recalcBlockCounts() temporarily resets #nonEmptyBlockCount to 0 due to a Paper optimization.
+                        section = null;
+                        return false;
+                    }
+
+                    return solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(getBlockState(section, x, y, z))];
+                }
+
+                if (this.sectionY != sectionY) {
+                    this.sectionY = sectionY;
+
+                    if (chunk == null) {
+                        // section = null;
+                        return UNLOADED_OCCLUDING;
+                    }
+
+                    if (sectionY < chunk.getMinSection() || sectionY >= chunk.getMaxSection()) {
+                        section = null;
+                        return false;
+                    }
+
+                    section = chunk.getSections()[sectionY - chunk.getMinSection()];
+
+                    if (section == null) { // Sections aren't null anymore.
+                        return false;
+                    }
+
+                    if (section.hasOnlyAir()) { // Unfortunately, LevelChunkSection#recalcBlockCounts() temporarily resets #nonEmptyBlockCount to 0 due to a Paper optimization.
+                        section = null;
+                        return false;
+                    }
+
+                    return solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(getBlockState(section, x, y, z))];
+                }
+
+                if (section == null) {
+                    return chunk == null && UNLOADED_OCCLUDING;
+                }
+
+                return solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(getBlockState(section, x, y, z))];
+            }
+
+            @Override
+            public void initializeCache(LevelChunk chunk, int chunkX, int sectionY, int chunkZ) {
+                this.chunk = chunk;
+                section = chunk.getSections()[sectionY - chunk.getMinSection()];
+                this.chunkX = chunkX;
+                this.sectionY = sectionY;
+                this.chunkZ = chunkZ;
+            }
+
+            @Override
+            public void clearCache() {
+                chunk = null;
+                section = null;
+            }
+        };
+        blockOcclusionCulling = new BlockOcclusionCulling(blockIterator::initializeNormalized, cachedSectionblockOcclusionGetter, true);
         this.chunks = chunks.values();
         rayTraceDistance = chunkPacketBlockControllerAntiXray.rayTraceDistance;
         rayTraceDistanceSquared = rayTraceDistance * rayTraceDistance;
@@ -130,14 +282,16 @@ public final class RayTraceCallable implements Callable<Void> {
                     continue;
                 }
 
+                int sectionY = y >> 4;
                 boolean visible = false;
 
                 for (int i = 0; i < locations.length; i++) {
                     VectorialLocation location = locations[i];
                     Vector direction = location.getDirection();
+                    cachedSectionblockOcclusionGetter.initializeCache(chunk, chunkX, sectionY, chunkZ);
 
                     if (i == 0) {
-                        if (blockOcclusionCulling.isVisible(x, y, z, centerX, centerY, centerZ, differenceX, differenceY, differenceZ, distanceSquared, direction.getX(), direction.getY(), direction.getZ(), chunk, chunkX, chunkZ)) {
+                        if (blockOcclusionCulling.isVisible(x, y, z, centerX, centerY, centerZ, differenceX, differenceY, differenceZ, distanceSquared, direction.getX(), direction.getY(), direction.getZ())) {
                             visible = true;
                             break;
                         }
@@ -148,7 +302,7 @@ public final class RayTraceCallable implements Callable<Void> {
                         double vectorDifferenceZ = vector.getZ() - centerZ;
                         double vectorDistanceSquared = vectorDifferenceX * vectorDifferenceX + vectorDifferenceY * vectorDifferenceY + vectorDifferenceZ * vectorDifferenceZ;
 
-                        if (blockOcclusionCulling.isVisible(x, y, z, centerX, centerY, centerZ, vectorDifferenceX, vectorDifferenceY, vectorDifferenceZ, vectorDistanceSquared, direction.getX(), direction.getY(), direction.getZ(), chunk, chunkX, chunkZ)) {
+                        if (blockOcclusionCulling.isVisible(x, y, z, centerX, centerY, centerZ, vectorDifferenceX, vectorDifferenceY, vectorDifferenceZ, vectorDistanceSquared, direction.getX(), direction.getY(), direction.getZ())) {
                             visible = true;
                             break;
                         }
@@ -171,5 +325,28 @@ public final class RayTraceCallable implements Callable<Void> {
                 }
             }
         }
+
+        cachedSectionblockOcclusionGetter.clearCache();
+    }
+
+    private static BlockState getBlockState(LevelChunkSection section, int x, int y, int z) {
+        // synchronized (section.getStates()) {
+        //     try {
+        //         section.getStates().acquire();
+                try {
+                    return section.getBlockState(x & 15, y & 15, z & 15);
+                } catch (MissingPaletteEntryException e) {
+                    return AIR;
+                }
+        //     } finally {
+        //         section.getStates().release();
+        //     }
+        // }
+    }
+
+    private interface CachedSectionBlockOcclusionGetter extends BlockOcclusionGetter {
+        void initializeCache(LevelChunk chunk, int chunkX, int sectionY, int chunkZ);
+
+        void clearCache();
     }
 }

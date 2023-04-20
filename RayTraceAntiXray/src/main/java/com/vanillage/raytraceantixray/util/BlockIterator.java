@@ -1,6 +1,7 @@
 package com.vanillage.raytraceantixray.util;
 
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 // Amanatides, J., & Woo, A. A Fast Voxel Traversal Algorithm for Ray Tracing. http://www.cse.yorku.ca/~amana/research/grid.pdf.
 public final class BlockIterator implements Iterator<int[]> {
@@ -62,9 +63,10 @@ public final class BlockIterator implements Iterator<int[]> {
         double directionY = endY - startY;
         double directionZ = endZ - startZ;
         double distance = Math.sqrt(directionX * directionX + directionY * directionY + directionZ * directionZ);
-        directionX /= distance;
-        directionY /= distance;
-        directionZ /= distance;
+        double fixedDistance = distance == 0. ? Double.NaN : distance;
+        directionX /= fixedDistance;
+        directionY /= fixedDistance;
+        directionZ /= fixedDistance;
         return initializeNormalized(x, y, z, startX, startY, startZ, directionX, directionY, directionZ, distance);
     }
 
@@ -78,6 +80,11 @@ public final class BlockIterator implements Iterator<int[]> {
         directionY *= signum;
         directionZ *= signum;
         double length = Math.sqrt(directionX * directionX + directionY * directionY + directionZ * directionZ);
+
+        if (length == 0.) {
+            length = Double.NaN;
+        }
+
         directionX /= length;
         directionY /= length;
         directionZ /= length;
@@ -103,14 +110,13 @@ public final class BlockIterator implements Iterator<int[]> {
         tDeltaY = 1. / Math.abs(directionY);
         tDeltaZ = 1. / Math.abs(directionZ);
         next = ref;
-        // ref[0] = x;
-        // ref[1] = y;
-        // ref[2] = z;
-        calculateNext(); // This implementation doesn't include the start block. Use comments above if needed.
+        ref[0] = x;
+        ref[1] = y;
+        ref[2] = z;
         return this;
     }
 
-    private void calculateNext() {
+    public int[] calculateNext() {
         if (tMaxX < tMaxY) {
             if (tMaxZ < tMaxX) {
                 if (tMaxZ <= tMax) {
@@ -178,6 +184,8 @@ public final class BlockIterator implements Iterator<int[]> {
                 next = null;
             }
         }
+
+        return next;
     }
 
     @Override
@@ -189,9 +197,9 @@ public final class BlockIterator implements Iterator<int[]> {
     public int[] next() {
         int[] next = this.next;
 
-        /* if (next == null) {
+        if (next == null) {
             throw new NoSuchElementException();
-        } */
+        }
 
         int[] temp = ref;
         ref = refSwap;
