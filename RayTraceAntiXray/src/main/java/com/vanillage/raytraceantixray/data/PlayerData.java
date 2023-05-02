@@ -1,14 +1,14 @@
 package com.vanillage.raytraceantixray.data;
 
+import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-
-import org.cliffc.high_scale_lib.NonBlockingHashMapLong;
 
 public final class PlayerData implements Callable<Object> {
     private volatile VectorialLocation[] locations;
-    private final NonBlockingHashMapLong<ChunkBlocks> chunks = new NonBlockingHashMapLong<>();
+    private final Map<LongWrapper, ChunkBlocks> chunks = new ConcurrentHashMap<>();
     private final Queue<Result> results = new ConcurrentLinkedQueue<>();
     private Callable<?> callable;
 
@@ -24,7 +24,7 @@ public final class PlayerData implements Callable<Object> {
         this.locations = locations;
     }
 
-    public NonBlockingHashMapLong<ChunkBlocks> getChunks() {
+    public Map<LongWrapper, ChunkBlocks> getChunks() {
         return chunks;
     }
 

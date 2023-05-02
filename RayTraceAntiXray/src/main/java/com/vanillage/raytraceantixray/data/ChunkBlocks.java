@@ -9,12 +9,12 @@ import net.minecraft.world.level.chunk.LevelChunk;
 
 public final class ChunkBlocks {
     private final Reference<LevelChunk> chunk;
-    private final long key;
+    private final LongWrapper key;
     private final Map<BlockPos, Boolean> blocks;
 
     public ChunkBlocks(LevelChunk chunk, Map<BlockPos, Boolean> blocks) {
         this.chunk = new WeakReference<>(chunk);
-        key = chunk.getPos().toLong();
+        key = new LongWrapper(chunk.getPos().toLong());
         this.blocks = blocks;
     }
 
@@ -22,7 +22,7 @@ public final class ChunkBlocks {
         return chunk.get();
     }
 
-    public long getKey() {
+    public LongWrapper getKey() {
         return key;
     }
 

@@ -4,6 +4,8 @@ import java.lang.reflect.Field;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.bukkit.World;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.craftbukkit.v1_19_R3.CraftWorld;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -14,7 +16,6 @@ import com.vanillage.raytraceantixray.antixray.ChunkPacketBlockControllerAntiXra
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.Level;
-import sun.misc.Unsafe;
 
 public final class WorldListener implements Listener {
     private final RayTraceAntiXray plugin;
@@ -25,20 +26,23 @@ public final class WorldListener implements Listener {
 
     @EventHandler
     public void onWorldInit(WorldInitEvent event) {
-        if (plugin.isEnabled(event.getWorld())) {
-            boolean rayTraceThirdPerson = plugin.getConfig().getBoolean("world-settings." + event.getWorld().getName() + ".anti-xray.ray-trace-third-person", plugin.getConfig().getBoolean("world-settings.default.anti-xray.ray-trace-third-person"));
-            double rayTraceDistance = Math.max(plugin.getConfig().getDouble("world-settings." + event.getWorld().getName() + ".anti-xray.ray-trace-distance", plugin.getConfig().getDouble("world-settings.default.anti-xray.ray-trace-distance")), 0.);
-            int maxRayTraceBlockCountPerChunk = Math.max(plugin.getConfig().getInt("world-settings." + event.getWorld().getName() + ".anti-xray.max-ray-trace-block-count-per-chunk", plugin.getConfig().getInt("world-settings.default.anti-xray.max-ray-trace-block-count-per-chunk")), 0);
-            boolean rehideBlocks = plugin.getConfig().getBoolean("world-settings." + event.getWorld().getName() + ".anti-xray.rehide-blocks", plugin.getConfig().getBoolean("world-settings.default.anti-xray.rehide-blocks"));
-            List<String> rayTraceBlocks = plugin.getConfig().getList("world-settings." + event.getWorld().getName() + ".anti-xray.ray-trace-blocks", plugin.getConfig().getList("world-settings.default.anti-xray.ray-trace-blocks")).stream().filter(o -> o != null).map(String::valueOf).collect(Collectors.toList());
+        World world = event.getWorld();
+
+        if (plugin.isEnabled(world)) {
+            ConfigurationSection config = plugin.getConfig();
+            String worldName = world.getName();
+            boolean rayTraceThirdPerson = config.getBoolean("world-settings." + worldName + ".anti-xray.ray-trace-third-person", config.getBoolean("world-settings.default.anti-xray.ray-trace-third-person"));
+            double rayTraceDistance = Math.max(config.getDouble("world-settings." + worldName + ".anti-xray.ray-trace-distance", config.getDouble("world-settings.default.anti-xray.ray-trace-distance")), 0.);
+            int maxRayTraceBlockCountPerChunk = Math.max(config.getInt("world-settings." + worldName + ".anti-xray.max-ray-trace-block-count-per-chunk", config.getInt("world-settings.default.anti-xray.max-ray-trace-block-count-per-chunk")), 0);
+            boolean rehideBlocks = config.getBoolean("world-settings." + worldName + ".anti-xray.rehide-blocks", config.getBoolean("world-settings.default.anti-xray.rehide-blocks"));
+            List<String> rayTraceBlocks = config.getList("world-settings." + worldName + ".anti-xray.ray-trace-blocks", config.getList("world-settings.default.anti-xray.ray-trace-blocks")).stream().filter(o -> o != null).map(String::valueOf).collect(Collectors.toList());
+            Level level = ((CraftWorld) world).getHandle();
+            Object controller = new ChunkPacketBlockControllerAntiXray(plugin, rayTraceThirdPerson, rayTraceDistance, maxRayTraceBlockCountPerChunk, rehideBlocks, rayTraceBlocks.isEmpty() ? null : rayTraceBlocks, level, MinecraftServer.getServer().executor);
 
             try {
-                Field chunkPacketBlockController = Level.class.getDeclaredField("chunkPacketBlockController");
-                chunkPacketBlockController.setAccessible(true);
-                Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
-                theUnsafe.setAccessible(true);
-                Unsafe unsafe = (Unsafe) theUnsafe.get(null);
-                unsafe.putObject(((CraftWorld) event.getWorld()).getHandle(), unsafe.objectFieldOffset(chunkPacketBlockController), new ChunkPacketBlockControllerAntiXray(plugin, rayTraceThirdPerson, rayTraceDistance, maxRayTraceBlockCountPerChunk, rehideBlocks, rayTraceBlocks.isEmpty() ? null : rayTraceBlocks, ((CraftWorld) event.getWorld()).getHandle(), MinecraftServer.getServer().executor));
+                Field field = Level.class.getDeclaredField("chunkPacketBlockController");
+                field.setAccessible(true);
+                field.set(level, controller);
             } catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
                 e.printStackTrace();
             }

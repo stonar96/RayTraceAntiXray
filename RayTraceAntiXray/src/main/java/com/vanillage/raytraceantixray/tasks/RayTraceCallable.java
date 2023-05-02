@@ -2,16 +2,18 @@ package com.vanillage.raytraceantixray.tasks;
 
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.Callable;
 
 import org.bukkit.craftbukkit.v1_19_R3.CraftWorld;
 import org.bukkit.util.Vector;
-import org.cliffc.high_scale_lib.NonBlockingHashMapLong;
 
 import com.destroystokyo.paper.antixray.ChunkPacketBlockController;
 import com.vanillage.raytraceantixray.antixray.ChunkPacketBlockControllerAntiXray;
 import com.vanillage.raytraceantixray.data.ChunkBlocks;
+import com.vanillage.raytraceantixray.data.LongWrapper;
+import com.vanillage.raytraceantixray.data.MutableLongWrapper;
 import com.vanillage.raytraceantixray.data.PlayerData;
 import com.vanillage.raytraceantixray.data.Result;
 import com.vanillage.raytraceantixray.data.VectorialLocation;
@@ -30,7 +32,7 @@ import net.minecraft.world.level.chunk.MissingPaletteEntryException;
 public final class RayTraceCallable implements Callable<Void> {
     private static final BlockState AIR = Blocks.AIR.defaultBlockState();
     private final PlayerData playerData;
-    private final CachedSectionBlockOcclusionGetter cachedSectionblockOcclusionGetter;
+    private final CachedSectionBlockOcclusionGetter cachedSectionBlockOcclusionGetter;
     private final BlockOcclusionCulling blockOcclusionCulling;
     private final Collection<ChunkBlocks> chunks;
     private final double rayTraceDistance;
@@ -42,7 +44,7 @@ public final class RayTraceCallable implements Callable<Void> {
 
         if (!(chunkPacketBlockController instanceof ChunkPacketBlockControllerAntiXray)) {
             this.playerData = null;
-            cachedSectionblockOcclusionGetter = null;
+            cachedSectionBlockOcclusionGetter = null;
             blockOcclusionCulling = null;
             chunks = null;
             rayTraceDistance = 0.;
@@ -53,10 +55,11 @@ public final class RayTraceCallable implements Callable<Void> {
 
         this.playerData = playerData;
         BlockIterator blockIterator = new BlockIterator(0., 0., 0., 0., 0., 0.);
-        NonBlockingHashMapLong<ChunkBlocks> chunks = playerData.getChunks();
+        Map<LongWrapper, ChunkBlocks> chunks = playerData.getChunks();
         ChunkPacketBlockControllerAntiXray chunkPacketBlockControllerAntiXray = (ChunkPacketBlockControllerAntiXray) chunkPacketBlockController;
         boolean[] solidGlobal = chunkPacketBlockControllerAntiXray.solidGlobal;
-        cachedSectionblockOcclusionGetter = new CachedSectionBlockOcclusionGetter() {
+        MutableLongWrapper mutableLongWrapper = new MutableLongWrapper(0L);
+        cachedSectionBlockOcclusionGetter = new CachedSectionBlockOcclusionGetter() {
             private static final boolean UNLOADED_OCCLUDING = true;
             private LevelChunk chunk;
             private LevelChunkSection section;
@@ -70,7 +73,8 @@ public final class RayTraceCallable implements Callable<Void> {
                 int chunkZ = z >> 4;
 
                 if (this.chunkX != chunkX || this.chunkZ != chunkZ) {
-                    ChunkBlocks chunkBlocks = chunks.get(ChunkPos.asLong(chunkX, chunkZ));
+                    mutableLongWrapper.setValue(ChunkPos.asLong(chunkX, chunkZ));
+                    ChunkBlocks chunkBlocks = chunks.get(mutableLongWrapper);
 
                     if (chunkBlocks == null) {
                         return UNLOADED_OCCLUDING;
@@ -124,7 +128,8 @@ public final class RayTraceCallable implements Callable<Void> {
                     this.chunkX = chunkX;
                     this.sectionY = sectionY;
                     this.chunkZ = chunkZ;
-                    ChunkBlocks chunkBlocks = chunks.get(ChunkPos.asLong(chunkX, chunkZ));
+                    mutableLongWrapper.setValue(ChunkPos.asLong(chunkX, chunkZ));
+                    ChunkBlocks chunkBlocks = chunks.get(mutableLongWrapper);
 
                     if (chunkBlocks == null) {
                         chunk = null;
@@ -207,7 +212,7 @@ public final class RayTraceCallable implements Callable<Void> {
                 section = null;
             }
         };
-        blockOcclusionCulling = new BlockOcclusionCulling(blockIterator::initializeNormalized, cachedSectionblockOcclusionGetter, true);
+        blockOcclusionCulling = new BlockOcclusionCulling(blockIterator::initializeNormalized, cachedSectionBlockOcclusionGetter, true);
         this.chunks = chunks.values();
         rayTraceDistance = chunkPacketBlockControllerAntiXray.rayTraceDistance;
         rayTraceDistanceSquared = rayTraceDistance * rayTraceDistance;
@@ -288,7 +293,7 @@ public final class RayTraceCallable implements Callable<Void> {
                 for (int i = 0; i < locations.length; i++) {
                     VectorialLocation location = locations[i];
                     Vector direction = location.getDirection();
-                    cachedSectionblockOcclusionGetter.initializeCache(chunk, chunkX, sectionY, chunkZ);
+                    cachedSectionBlockOcclusionGetter.initializeCache(chunk, chunkX, sectionY, chunkZ);
 
                     if (i == 0) {
                         if (blockOcclusionCulling.isVisible(x, y, z, centerX, centerY, centerZ, differenceX, differenceY, differenceZ, distanceSquared, direction.getX(), direction.getY(), direction.getZ())) {
@@ -326,7 +331,7 @@ public final class RayTraceCallable implements Callable<Void> {
             }
         }
 
-        cachedSectionblockOcclusionGetter.clearCache();
+        cachedSectionBlockOcclusionGetter.clearCache();
     }
 
     private static BlockState getBlockState(LevelChunkSection section, int x, int y, int z) {
