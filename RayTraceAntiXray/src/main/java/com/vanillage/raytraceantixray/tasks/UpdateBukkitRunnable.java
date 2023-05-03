@@ -19,6 +19,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 public final class UpdateBukkitRunnable extends BukkitRunnable {
@@ -60,9 +61,14 @@ public final class UpdateBukkitRunnable extends BukkitRunnable {
                 }
 
                 BlockState blockState;
+                BlockEntity blockEntity = null;
 
                 if (result.isVisible()) {
                     blockState = ((CraftWorld) world).getHandle().getBlockState(block);
+
+                    if (blockState.hasBlockEntity()) {
+                        blockEntity = ((CraftWorld) world).getHandle().getBlockEntity(block);
+                    }
                 } else if (world.getEnvironment() == Environment.NETHER) {
                     blockState = Blocks.NETHERRACK.defaultBlockState();
                 } else if (world.getEnvironment() == Environment.THE_END) {
@@ -78,6 +84,14 @@ public final class UpdateBukkitRunnable extends BukkitRunnable {
                 // As described above, the packet queue could for example already contain a chunk unload packet.
                 // Thus we send our packet immediately before that.
                 sendPacketImmediately(p, new ClientboundBlockUpdatePacket(block, blockState));
+
+                if (blockEntity != null) {
+                    Object packet = blockEntity.getUpdatePacket();
+
+                    if (packet != null) {
+                        sendPacketImmediately(p, packet);
+                    }
+                }
             }
         });
     }
