@@ -7,7 +7,7 @@
   <name>Libs</name>
   <description>Libs.</description>
   <properties>
-    <minecraftVersion>1.19.4</minecraftVersion>
+    <minecraftVersion>1.20</minecraftVersion>
     <paperVersion>${minecraftVersion}-R0.1-SNAPSHOT</paperVersion>
   </properties>
   <repositories>
@@ -21,7 +21,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
-        <version>3.5.0</version>
+        <version>3.6.0</version>
         <executions>
           <execution>
             <id>unpack</id>
