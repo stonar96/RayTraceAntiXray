@@ -2,12 +2,12 @@ package com.vanillage.raytraceantixray.tasks;
 
 import java.util.Queue;
 
+import com.vanillage.raytraceantixray.util.SchedulerUtil;
 import org.bukkit.World;
 import org.bukkit.World.Environment;
 import org.bukkit.craftbukkit.v1_20_R1.CraftWorld;
 import org.bukkit.craftbukkit.v1_20_R1.entity.CraftPlayer;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
 
 import com.vanillage.raytraceantixray.RayTraceAntiXray;
 import com.vanillage.raytraceantixray.data.ChunkBlocks;
@@ -22,7 +22,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
-public final class UpdateBukkitRunnable extends BukkitRunnable {
+public final class UpdateBukkitRunnable implements Runnable {
     private final RayTraceAntiXray plugin;
 
     public UpdateBukkitRunnable(RayTraceAntiXray plugin) {
@@ -33,6 +33,11 @@ public final class UpdateBukkitRunnable extends BukkitRunnable {
     public void run() {
         plugin.getServer().getOnlinePlayers().forEach(p -> {
             PlayerData playerData = plugin.getPlayerData().get(p.getUniqueId());
+
+            if (playerData == null) {
+                return;
+            }
+
             World world = playerData.getLocations()[0].getWorld();
 
             if (!p.getWorld().equals(world)) {
@@ -61,14 +66,25 @@ public final class UpdateBukkitRunnable extends BukkitRunnable {
                 }
 
                 BlockState blockState;
-                BlockEntity blockEntity = null;
 
                 if (result.isVisible()) {
-                    blockState = ((CraftWorld) world).getHandle().getBlockState(block);
+                    SchedulerUtil.runRegionTask(plugin, world, block.getX() >> 4, block.getZ() >> 4, () -> {
+                        BlockState blockStateLambda = ((CraftWorld) world).getHandle().getBlockState(block);
+                        sendPacketImmediately(p, new ClientboundBlockUpdatePacket(block, blockStateLambda));
 
-                    if (blockState.hasBlockEntity()) {
-                        blockEntity = ((CraftWorld) world).getHandle().getBlockEntity(block);
-                    }
+                        if (!blockStateLambda.hasBlockEntity()) {
+                            return;
+                        }
+
+                        BlockEntity blockEntity = ((CraftWorld) world).getHandle().getBlockEntity(block);
+                        Object packet = blockEntity.getUpdatePacket();
+
+                        if (packet != null) {
+                            sendPacketImmediately(p, packet);
+                        }
+
+                    });
+                    return;
                 } else if (world.getEnvironment() == Environment.NETHER) {
                     blockState = Blocks.NETHERRACK.defaultBlockState();
                 } else if (world.getEnvironment() == Environment.THE_END) {
@@ -85,13 +101,7 @@ public final class UpdateBukkitRunnable extends BukkitRunnable {
                 // Thus we send our packet immediately before that.
                 sendPacketImmediately(p, new ClientboundBlockUpdatePacket(block, blockState));
 
-                if (blockEntity != null) {
-                    Object packet = blockEntity.getUpdatePacket();
 
-                    if (packet != null) {
-                        sendPacketImmediately(p, packet);
-                    }
-                }
             }
         });
     }

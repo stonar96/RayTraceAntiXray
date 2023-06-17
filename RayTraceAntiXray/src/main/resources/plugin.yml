@@ -6,6 +6,7 @@ description: Paper plugin for server-side async multithreaded ray tracing to hid
 load: STARTUP
 depend:
 - ProtocolLib
+folia-supported: true
 commands:
   raytraceantixray:
     description: All commands for RayTraceAntiXray.
