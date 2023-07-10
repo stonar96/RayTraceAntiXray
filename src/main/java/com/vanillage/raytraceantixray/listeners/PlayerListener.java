@@ -1,6 +1,7 @@
 package com.vanillage.raytraceantixray.listeners;
 
 import org.bukkit.Location;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -12,6 +13,8 @@ import com.vanillage.raytraceantixray.RayTraceAntiXray;
 import com.vanillage.raytraceantixray.data.PlayerData;
 import com.vanillage.raytraceantixray.data.VectorialLocation;
 import com.vanillage.raytraceantixray.tasks.RayTraceCallable;
+import com.vanillage.raytraceantixray.tasks.UpdateBukkitRunnable;
+import com.vanillage.raytraceantixray.util.SchedulerUtil;
 
 public final class PlayerListener implements Listener {
     private final RayTraceAntiXray plugin;
@@ -22,9 +25,15 @@ public final class PlayerListener implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        PlayerData playerData = new PlayerData(plugin.getLocations(event.getPlayer(), new VectorialLocation(event.getPlayer().getEyeLocation())));
+        Player player = event.getPlayer();
+
+        PlayerData playerData = new PlayerData(plugin.getLocations(player, new VectorialLocation(player.getEyeLocation())));
         playerData.setCallable(new RayTraceCallable(playerData));
-        plugin.getPlayerData().put(event.getPlayer().getUniqueId(), playerData);
+        plugin.getPlayerData().put(player.getUniqueId(), playerData);
+        SchedulerUtil.runTaskTimerEntity(plugin, player,
+                                         new UpdateBukkitRunnable(plugin, player),
+                                         0L,
+                                         Math.max(plugin.getConfig().getLong("settings.anti-xray.update-ticks"), 1L));
     }
 
     @EventHandler
