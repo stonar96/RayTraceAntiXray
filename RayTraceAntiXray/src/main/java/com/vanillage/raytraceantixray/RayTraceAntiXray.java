@@ -9,7 +9,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import com.vanillage.raytraceantixray.util.SchedulerUtil;
 import org.bukkit.World;
 import org.bukkit.craftbukkit.v1_20_R1.CraftWorld;
 import org.bukkit.craftbukkit.v1_20_R1.entity.CraftEntity;
@@ -29,7 +28,6 @@ import com.vanillage.raytraceantixray.listeners.PacketListener;
 import com.vanillage.raytraceantixray.listeners.PlayerListener;
 import com.vanillage.raytraceantixray.listeners.WorldListener;
 import com.vanillage.raytraceantixray.tasks.RayTraceTimerTask;
-import com.vanillage.raytraceantixray.tasks.UpdateBukkitRunnable;
 
 import io.papermc.paper.configuration.type.EngineMode;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
@@ -60,7 +58,6 @@ public final class RayTraceAntiXray extends JavaPlugin {
         executorService = Executors.newFixedThreadPool(Math.max(getConfig().getInt("settings.anti-xray.ray-trace-threads"), 1));
         timer = new Timer(true);
         timer.schedule(new RayTraceTimerTask(this), 0L, Math.max(getConfig().getLong("settings.anti-xray.ms-per-ray-trace-tick"), 1L));
-        SchedulerUtil.runTaskTimer(this, new UpdateBukkitRunnable(this), 0L, Math.max(getConfig().getLong("settings.anti-xray.update-ticks"), 1L));
         // Register events.
         getServer().getPluginManager().registerEvents(new WorldListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
@@ -127,6 +124,16 @@ public final class RayTraceAntiXray extends JavaPlugin {
 
     public boolean isEnabled(World world) {
         return ((CraftWorld) world).getHandle().paperConfig().anticheat.antiXray.enabled && ((CraftWorld) world).getHandle().paperConfig().anticheat.antiXray.engineMode == EngineMode.HIDE && getConfig().getBoolean("world-settings." + world.getName() + ".anti-xray.ray-trace", getConfig().getBoolean("world-settings.default.anti-xray.ray-trace"));
+    }
+
+    public boolean isFolia() {
+        try {
+            Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
+            Class.forName("io.papermc.paper.threadedregions.RegionizedServerInitEvent");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
     }
 
     public VectorialLocation[] getLocations(Entity entity, VectorialLocation location) {

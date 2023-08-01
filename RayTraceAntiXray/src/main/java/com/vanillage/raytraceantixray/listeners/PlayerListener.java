@@ -1,5 +1,7 @@
 package com.vanillage.raytraceantixray.listeners;
 
+import com.vanillage.raytraceantixray.tasks.UpdateBukkitRunnable;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -15,9 +17,11 @@ import com.vanillage.raytraceantixray.tasks.RayTraceCallable;
 
 public final class PlayerListener implements Listener {
     private final RayTraceAntiXray plugin;
+    private final boolean isFolia;
 
     public PlayerListener(RayTraceAntiXray plugin) {
         this.plugin = plugin;
+        this.isFolia = plugin.isFolia();
     }
 
     @EventHandler
@@ -25,6 +29,15 @@ public final class PlayerListener implements Listener {
         PlayerData playerData = new PlayerData(plugin.getLocations(event.getPlayer(), new VectorialLocation(event.getPlayer().getEyeLocation())));
         playerData.setCallable(new RayTraceCallable(playerData));
         plugin.getPlayerData().put(event.getPlayer().getUniqueId(), playerData);
+
+        Runnable runnable = new UpdateBukkitRunnable(plugin,event.getPlayer());
+        long period = Math.max(plugin.getConfig().getLong("settings.anti-xray.update-ticks"), 1L);
+
+        if (isFolia){
+            event.getPlayer().getScheduler().runAtFixedRate(plugin, (t) -> runnable.run(), null, 1L, period);
+        } else {
+            Bukkit.getScheduler().runTaskTimer(plugin, runnable, 0L, period);
+        }
     }
 
     @EventHandler
