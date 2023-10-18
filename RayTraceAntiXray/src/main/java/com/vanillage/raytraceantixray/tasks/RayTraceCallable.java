@@ -38,6 +38,7 @@ public final class RayTraceCallable implements Callable<Void> {
     private final double rayTraceDistance;
     private final double rayTraceDistanceSquared;
     private final boolean rehideBlocks;
+    private final double rehideDistanceSquared;
 
     public RayTraceCallable(PlayerData playerData) {
         ChunkPacketBlockController chunkPacketBlockController = ((CraftWorld) playerData.getLocations()[0].getWorld()).getHandle().chunkPacketBlockController;
@@ -50,6 +51,7 @@ public final class RayTraceCallable implements Callable<Void> {
             rayTraceDistance = 0.;
             rayTraceDistanceSquared = 0.;
             rehideBlocks = false;
+            rehideDistanceSquared = 0.;
             return;
         }
 
@@ -217,6 +219,7 @@ public final class RayTraceCallable implements Callable<Void> {
         rayTraceDistance = chunkPacketBlockControllerAntiXray.rayTraceDistance;
         rayTraceDistanceSquared = rayTraceDistance * rayTraceDistance;
         rehideBlocks = chunkPacketBlockControllerAntiXray.rehideBlocks;
+        rehideDistanceSquared = chunkPacketBlockControllerAntiXray.rehideDistance * chunkPacketBlockControllerAntiXray.rehideDistance;
     }
 
     @Override
@@ -287,29 +290,32 @@ public final class RayTraceCallable implements Callable<Void> {
                     continue;
                 }
 
-                int sectionY = y >> 4;
                 boolean visible = false;
 
-                for (int i = 0; i < locations.length; i++) {
-                    VectorialLocation location = locations[i];
-                    Vector direction = location.getDirection();
-                    cachedSectionBlockOcclusionGetter.initializeCache(chunk, chunkX, sectionY, chunkZ);
+                if (distanceSquared < rehideDistanceSquared) {
+                    int sectionY = y >> 4;
 
-                    if (i == 0) {
-                        if (blockOcclusionCulling.isVisible(x, y, z, centerX, centerY, centerZ, differenceX, differenceY, differenceZ, distanceSquared, direction.getX(), direction.getY(), direction.getZ())) {
-                            visible = true;
-                            break;
-                        }
-                    } else {
-                        Vector vector = location.getVector();
-                        double vectorDifferenceX = vector.getX() - centerX;
-                        double vectorDifferenceY = vector.getY() - centerY;
-                        double vectorDifferenceZ = vector.getZ() - centerZ;
-                        double vectorDistanceSquared = vectorDifferenceX * vectorDifferenceX + vectorDifferenceY * vectorDifferenceY + vectorDifferenceZ * vectorDifferenceZ;
+                    for (int i = 0; i < locations.length; i++) {
+                        VectorialLocation location = locations[i];
+                        Vector direction = location.getDirection();
+                        cachedSectionBlockOcclusionGetter.initializeCache(chunk, chunkX, sectionY, chunkZ);
 
-                        if (blockOcclusionCulling.isVisible(x, y, z, centerX, centerY, centerZ, vectorDifferenceX, vectorDifferenceY, vectorDifferenceZ, vectorDistanceSquared, direction.getX(), direction.getY(), direction.getZ())) {
-                            visible = true;
-                            break;
+                        if (i == 0) {
+                            if (blockOcclusionCulling.isVisible(x, y, z, centerX, centerY, centerZ, differenceX, differenceY, differenceZ, distanceSquared, direction.getX(), direction.getY(), direction.getZ())) {
+                                visible = true;
+                                break;
+                            }
+                        } else {
+                            Vector vector = location.getVector();
+                            double vectorDifferenceX = vector.getX() - centerX;
+                            double vectorDifferenceY = vector.getY() - centerY;
+                            double vectorDifferenceZ = vector.getZ() - centerZ;
+                            double vectorDistanceSquared = vectorDifferenceX * vectorDifferenceX + vectorDifferenceY * vectorDifferenceY + vectorDifferenceZ * vectorDifferenceZ;
+
+                            if (blockOcclusionCulling.isVisible(x, y, z, centerX, centerY, centerZ, vectorDifferenceX, vectorDifferenceY, vectorDifferenceZ, vectorDistanceSquared, direction.getX(), direction.getY(), direction.getZ())) {
+                                visible = true;
+                                break;
+                            }
                         }
                     }
                 }

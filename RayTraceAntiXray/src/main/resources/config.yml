@@ -1,19 +1,29 @@
 # This is an example configuration. Lines starting with # are comments and are ignored.
-# 
+#
 # settings:
 #   anti-xray:
-#     update-ticks: 1                           # Time period in Minecraft ticks for sending block updates.
+#     update-ticks: 1                           # Time period in Minecraft ticks for sending block updates to reveal blocks.
 #     ms-per-ray-trace-tick: 50                 # Target time per ray trace tick in milliseconds.
 #     ray-trace-threads: 2                      # Number of threads that are used for ray tracing.
 # world-settings:
 #   default:                                    # All worlds inherit settings from the default section.
 #     anti-xray:
+#       ### Ray tracing related settings ###
+#       # RayTraceAntiXray hides blocks that are exposed to air, which are not hidden by Paper Anti-Xray.
+#       # For this, a list of block positions is created when a chunk is sent to a player based on the block selection related settings below.
+#       # Those blocks are hidden initally when the chunk is sent, which means they are replaced by stone, deepslate, netherrack or end stone depending on the world type.
+#       # Then they are ray traced to reveal the blocks that the player can actually see.
 #       ray-trace: true                         # Whether or not to enable ray tracing. Note that Paper Anti-Xray must also be enabled using engine-mode: 1.
 #       ray-trace-third-person: true            # Whether or not to ray trace third person back and front view. Note that this is even more resource intensive.
-#       ray-trace-distance: 64.0                # Maximum distance between player (eye location) and block (center) for ray tracing.
-#       max-ray-trace-block-count-per-chunk: 30 # Maximum number of ray traced blocks per chunk. Counting starts at the bottom of the world and increases upwards.
-#       rehide-blocks: true                     # Whether or not to rehide blocks when they were visible to a player but are no longer visible. If false, blocks are only rehidden when the chunk is resent.
-#       ray-trace-blocks:                       # Blocks that are hidden and ray traced. The hidden-blocks specified in the Paper config file are only hidden if they aren't exposed to transparent blocks. If this list is empty, the hidden-blocks specified in the Paper config file are used.
+#       ray-trace-distance: 64.0                # Blocks with a greater distance between the block center and the player eye are not calculated and will thus stay hidden or revealed depending on the previous state.
+#       rehide-blocks: true                     # Whether or not to rehide revealed blocks that the player can no longer see. If false, revealed (already seen) blocks are only rehidden when the chunk is resent.
+#       rehide-distance: 60.0                   # Blocks with a greater or equal distance between the block center and the player eye are treated as invisible to the player and are therefore (re)hidden (provided that rehide-blocks is enabled and the distance is still within the ray-trace-distance). If rehide-blocks is disabled, this setting has a similar effect as the ray-trace-distance and no effect if it is greater than the ray-trace-distance.
+#       ### Block selection related settings ###
+#       # The following settings are used to determine the list of block positions to be hidden and ray traced when a chunk is sent to a player.
+#       # Note that this list is not updated dynamically with newly placed or broken blocks until the chunk is resent.
+#       # Note that Paper Anti-Xray config settings, such as max-block-height, also apply.
+#       max-ray-trace-block-count-per-chunk: 30 # Maximum number of initially hidden and ray traced block positions per chunk. Counting starts at the bottom of the world and increases upwards.
+#       ray-trace-blocks:                       # Blocks that are hidden and ray traced. If this list is empty, the hidden-blocks specified in the Paper config file are used.
 #       - diamond_ore
 #       - deepslate_diamond_ore
 #       - emerald_ore
@@ -35,4 +45,5 @@ world-settings:
       ray-trace-distance: 80.0
       max-ray-trace-block-count-per-chunk: 100
       rehide-blocks: false
+      rehide-distance: .inf
       ray-trace-blocks: []

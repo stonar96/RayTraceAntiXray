@@ -45,6 +45,10 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
     private final int maxBlockHeight;
     private final int updateRadius;
     private final boolean usePermission;
+    public final boolean rayTraceThirdPerson;
+    public final double rayTraceDistance;
+    public final boolean rehideBlocks;
+    public final double rehideDistance;
     private final int maxRayTraceBlockCountPerChunk;
     private final BlockState[] presetBlockStates;
     private final BlockState[] presetBlockStatesFull;
@@ -61,12 +65,9 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
     private final boolean[] obfuscateGlobal = new boolean[Block.BLOCK_STATE_REGISTRY.size()];
     private final boolean[] traceGlobal;
     private final LevelChunkSection[] emptyNearbyChunkSections = {EMPTY_SECTION, EMPTY_SECTION, EMPTY_SECTION, EMPTY_SECTION};
-    public final boolean rayTraceThirdPerson;
-    public final double rayTraceDistance;
-    public final boolean rehideBlocks;
     private final int maxBlockHeightUpdatePosition;
 
-    public ChunkPacketBlockControllerAntiXray(RayTraceAntiXray plugin, boolean rayTraceThirdPerson, double rayTraceDistance, int maxRayTraceBlockCountPerChunk, boolean rehideBlocks, Iterable<? extends String> toTrace, Level level, Executor executor) {
+    public ChunkPacketBlockControllerAntiXray(RayTraceAntiXray plugin, boolean rayTraceThirdPerson, double rayTraceDistance, boolean rehideBlocks, double rehideDistance, int maxRayTraceBlockCountPerChunk, Iterable<? extends String> toTrace, Level level, Executor executor) {
         this.plugin = plugin;
         this.executor = executor;
         WorldConfiguration.Anticheat.AntiXray paperWorldConfig = level.paperConfig().anticheat.antiXray;
@@ -76,8 +77,9 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         usePermission = paperWorldConfig.usePermission;
         this.rayTraceThirdPerson = rayTraceThirdPerson;
         this.rayTraceDistance = rayTraceDistance;
-        this.maxRayTraceBlockCountPerChunk = maxRayTraceBlockCountPerChunk;
         this.rehideBlocks = rehideBlocks;
+        this.rehideDistance = rehideDistance;
+        this.maxRayTraceBlockCountPerChunk = maxRayTraceBlockCountPerChunk;
         List<String> toObfuscate;
 
         if (engineMode == EngineMode.HIDE) {
