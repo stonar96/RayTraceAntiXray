@@ -1,55 +1,82 @@
 package com.vanillage.raytraceantixray.tasks;
 
 import java.util.Queue;
+import java.util.concurrent.ConcurrentMap;
+import java.util.function.Consumer;
 
 import org.bukkit.World;
 import org.bukkit.World.Environment;
 import org.bukkit.craftbukkit.v1_20_R1.CraftWorld;
 import org.bukkit.craftbukkit.v1_20_R1.entity.CraftPlayer;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import com.vanillage.raytraceantixray.RayTraceAntiXray;
 import com.vanillage.raytraceantixray.data.ChunkBlocks;
+import com.vanillage.raytraceantixray.data.LongWrapper;
 import com.vanillage.raytraceantixray.data.PlayerData;
 import com.vanillage.raytraceantixray.data.Result;
 
 import io.netty.channel.Channel;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
-public final class UpdateBukkitRunnable implements Runnable {
+public final class UpdateBukkitRunnable extends BukkitRunnable implements Consumer<ScheduledTask> {
     private final RayTraceAntiXray plugin;
     private final Player player;
 
-    public UpdateBukkitRunnable(RayTraceAntiXray plugin,Player player) {
+    public UpdateBukkitRunnable(RayTraceAntiXray plugin) {
+        this(plugin, null);
+    }
+
+    public UpdateBukkitRunnable(RayTraceAntiXray plugin, Player player) {
         this.plugin = plugin;
         this.player = player;
     }
 
     @Override
     public void run() {
+        if (player == null) {
+            plugin.getServer().getOnlinePlayers().forEach(this::update);
+        } else {
+            update(player);
+        }
+    }
 
+    @Override
+    public void accept(ScheduledTask t) {
+        run();
+    }
+
+    public void update(Player player) {
         PlayerData playerData = plugin.getPlayerData().get(player.getUniqueId());
-
         World world = playerData.getLocations()[0].getWorld();
 
         if (!player.getWorld().equals(world)) {
             return;
         }
 
+        ConcurrentMap<LongWrapper, ChunkBlocks> chunks = playerData.getChunks();
+        ServerLevel serverLevel = ((CraftWorld) world).getHandle();
+        Environment environment = world.getEnvironment();
         Queue<Result> results = playerData.getResults();
+        Result result;
 
-        for (Result result = results.poll(); result != null; result = results.poll()) {
+        while ((result = results.poll()) != null) {
             ChunkBlocks chunkBlocks = result.getChunkBlocks();
 
             // Check if the client still has the chunk loaded and if it wasn't resent in the meantime.
             // Note that even if this check passes, the server could have already unloaded or resent the chunk but the corresponding packet is still in the packet queue.
             // Technically the null check isn't necessary but we don't need to send an update packet because the client will unload the chunk.
-            if (chunkBlocks.getChunk() == null || playerData.getChunks().get(chunkBlocks.getKey()) != chunkBlocks) {
+            if (chunkBlocks.getChunk() == null || chunks.get(chunkBlocks.getKey()) != chunkBlocks) {
                 continue;
             }
 
@@ -66,13 +93,14 @@ public final class UpdateBukkitRunnable implements Runnable {
             BlockEntity blockEntity = null;
 
             if (result.isVisible()) {
-                blockState = ((CraftWorld) world).getHandle().getBlockState(block);
+                blockState = serverLevel.getBlockState(block);
+
                 if (blockState.hasBlockEntity()) {
-                    blockEntity = ((CraftWorld) world).getHandle().getBlockEntity(block);
+                    blockEntity = serverLevel.getBlockEntity(block);
                 }
-            } else if (world.getEnvironment() == Environment.NETHER) {
+            } else if (environment == Environment.NETHER) {
                 blockState = Blocks.NETHERRACK.defaultBlockState();
-            } else if (world.getEnvironment() == Environment.THE_END) {
+            } else if (environment == Environment.THE_END) {
                 blockState = Blocks.END_STONE.defaultBlockState();
             } else if (block.getY() < 0) {
                 blockState = Blocks.DEEPSLATE.defaultBlockState();
@@ -87,7 +115,7 @@ public final class UpdateBukkitRunnable implements Runnable {
             sendPacketImmediately(player, new ClientboundBlockUpdatePacket(block, blockState));
 
             if (blockEntity != null) {
-                Object packet = blockEntity.getUpdatePacket();
+                Packet<ClientGamePacketListener> packet = blockEntity.getUpdatePacket();
 
                 if (packet != null) {
                     sendPacketImmediately(player, packet);

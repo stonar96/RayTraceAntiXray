@@ -38,8 +38,7 @@ public final class BlockOcclusionCulling {
         double differenceX = vectorX - centerX;
         double differenceY = vectorY - centerY;
         double differenceZ = vectorZ - centerZ;
-        double distanceSquared = differenceX * differenceX + differenceY * differenceY + differenceZ * differenceZ;
-        return isVisible(x, y, z, centerX, centerY, centerZ, differenceX, differenceY, differenceZ, distanceSquared, directionX, directionY, directionZ);
+        return isVisible(x, y, z, centerX, centerY, centerZ, differenceX, differenceY, differenceZ, differenceX * differenceX + differenceY * differenceY + differenceZ * differenceZ, directionX, directionY, directionZ);
     }
 
     public boolean isVisible(int x, int y, int z, double centerX, double centerY, double centerZ, double differenceX, double differenceY, double differenceZ, double distanceSquared, double directionX, double directionY, double directionZ) {

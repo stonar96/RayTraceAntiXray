@@ -1,42 +1,37 @@
 package com.vanillage.raytraceantixray.listeners;
 
-import com.vanillage.raytraceantixray.tasks.UpdateBukkitRunnable;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.util.Vector;
 
 import com.vanillage.raytraceantixray.RayTraceAntiXray;
 import com.vanillage.raytraceantixray.data.PlayerData;
 import com.vanillage.raytraceantixray.data.VectorialLocation;
 import com.vanillage.raytraceantixray.tasks.RayTraceCallable;
+import com.vanillage.raytraceantixray.tasks.UpdateBukkitRunnable;
 
 public final class PlayerListener implements Listener {
     private final RayTraceAntiXray plugin;
-    private final boolean isFolia;
 
     public PlayerListener(RayTraceAntiXray plugin) {
         this.plugin = plugin;
-        this.isFolia = plugin.isFolia();
     }
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        PlayerData playerData = new PlayerData(plugin.getLocations(event.getPlayer(), new VectorialLocation(event.getPlayer().getEyeLocation())));
-        playerData.setCallable(new RayTraceCallable(playerData));
-        plugin.getPlayerData().put(event.getPlayer().getUniqueId(), playerData);
+        Player player = event.getPlayer();
+        PlayerData playerData = new PlayerData(RayTraceAntiXray.getLocations(player, new VectorialLocation(player.getEyeLocation())));
+        playerData.setCallable(new RayTraceCallable(plugin, playerData));
+        plugin.getPlayerData().put(player.getUniqueId(), playerData);
 
-        Runnable runnable = new UpdateBukkitRunnable(plugin,event.getPlayer());
-        long period = Math.max(plugin.getConfig().getLong("settings.anti-xray.update-ticks"), 1L);
-
-        if (isFolia){
-            event.getPlayer().getScheduler().runAtFixedRate(plugin, (t) -> runnable.run(), null, 1L, period);
-        } else {
-            Bukkit.getScheduler().runTaskTimer(plugin, runnable, 0L, period);
+        if (plugin.isFolia()) {
+            player.getScheduler().runAtFixedRate(plugin, new UpdateBukkitRunnable(plugin, player), null, 1L, plugin.getUpdateTicks());
         }
     }
 
@@ -47,13 +42,15 @@ public final class PlayerListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerMove(PlayerMoveEvent event) {
-        PlayerData playerData = plugin.getPlayerData().get(event.getPlayer().getUniqueId());
+        Player player = event.getPlayer();
+        PlayerData playerData = plugin.getPlayerData().get(player.getUniqueId());
         Location to = event.getTo();
 
         if (to.getWorld().equals(playerData.getLocations()[0].getWorld())) {
             VectorialLocation location = new VectorialLocation(to);
-            location.getVector().setY(location.getVector().getY() + event.getPlayer().getEyeHeight());
-            playerData.setLocations(plugin.getLocations(event.getPlayer(), location));
+            Vector vector = location.getVector();
+            vector.setY(vector.getY() + player.getEyeHeight());
+            playerData.setLocations(RayTraceAntiXray.getLocations(player, location));
         }
     }
 }
