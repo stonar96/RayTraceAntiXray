@@ -1,14 +1,14 @@
 package com.vanillage.raytraceantixray.data;
 
-import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
 
 public final class PlayerData implements Callable<Object> {
     private volatile VectorialLocation[] locations;
-    private final Map<LongWrapper, ChunkBlocks> chunks = new ConcurrentHashMap<>();
+    private final ConcurrentMap<LongWrapper, ChunkBlocks> chunks = new ConcurrentHashMap<>();
     private final Queue<Result> results = new ConcurrentLinkedQueue<>();
     private Callable<?> callable;
 
@@ -24,7 +24,7 @@ public final class PlayerData implements Callable<Object> {
         this.locations = locations;
     }
 
-    public Map<LongWrapper, ChunkBlocks> getChunks() {
+    public ConcurrentMap<LongWrapper, ChunkBlocks> getChunks() {
         return chunks;
     }
 

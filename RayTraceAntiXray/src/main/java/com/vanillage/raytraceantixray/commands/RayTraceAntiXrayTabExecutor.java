@@ -20,7 +20,7 @@ public final class RayTraceAntiXrayTabExecutor implements TabExecutor {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
-        List<String> completions = new LinkedList<>();
+        LinkedList<String> completions = new LinkedList<>();
 
         if (args.length == 0) {
             if ("raytraceantixray".startsWith(label.toLowerCase(Locale.ROOT))) {
@@ -40,18 +40,6 @@ public final class RayTraceAntiXrayTabExecutor implements TabExecutor {
 
                         if (sender.hasPermission("raytraceantixray.command.raytraceantixray.timings.off") && "off".startsWith(args[1].toLowerCase(Locale.ROOT))) {
                             completions.add("off");
-                        }
-                    } else if (args[1].toLowerCase(Locale.ROOT).equals("on")) {
-                        if (sender.hasPermission("raytraceantixray.command.raytraceantixray.timings.on")) {
-                            if (args.length == 3) {
-
-                            }
-                        }
-                    } else if (args[1].toLowerCase(Locale.ROOT).equals("off")) {
-                        if (sender.hasPermission("raytraceantixray.command.raytraceantixray.timings.off")) {
-                            if (args.length == 3) {
-
-                            }
                         }
                     }
                 }

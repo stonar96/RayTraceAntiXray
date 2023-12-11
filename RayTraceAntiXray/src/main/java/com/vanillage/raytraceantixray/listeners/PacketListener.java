@@ -1,8 +1,12 @@
 package com.vanillage.raytraceantixray.listeners;
 
 import java.util.HashMap;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentMap;
 
 import org.bukkit.Location;
+import org.bukkit.craftbukkit.v1_20_R1.CraftWorld;
+import org.bukkit.entity.Player;
 
 import com.comphenix.protocol.PacketType;
 import com.comphenix.protocol.events.ListenerPriority;
@@ -29,7 +33,9 @@ public final class PacketListener extends PacketAdapter {
 
     @Override
     public void onPacketSending(PacketEvent event) {
-        if (event.getPacketType() == PacketType.Play.Server.MAP_CHUNK) {
+        PacketType packetType = event.getPacketType();
+
+        if (packetType == PacketType.Play.Server.MAP_CHUNK) {
             // A player data instance is always bound to a world and defines what is to be calculated.
             // Apart from the join and quit event, this is the only place that defines the world of a player by renewing the player data instance.
             // In principle, we could (additionally) renew the player data instance anywhere else if we detect a world change (e.g. move event, changed world event, ...).
@@ -46,7 +52,6 @@ public final class PacketListener extends PacketAdapter {
             // For similar reasons, we also handle chunk unloads via packet events below.
             // Everywhere else we have to check if the player's world still matches the world of the player data instance before we use it.
             // (See for example the move event.)
-            PlayerData playerData = plugin.getPlayerData().get(event.getPlayer().getUniqueId());
             // Get the result from Anti-Xray for the current chunk packet.
             // We can't remove the entry because the same chunk packet can be sent to multiple players.
             // The garbage collector will remove the entry later since we're using a weak key map.
@@ -56,15 +61,18 @@ public final class PacketListener extends PacketAdapter {
                 // RayTraceAntiXray is probably not enabled in this world (or other plugins bypass Anti-Xray).
                 // We can't determine the world from the chunk packet in this case.
                 // Thus we use the player's current (more up to date) world instead.
-                Location location = event.getPlayer().getEyeLocation();
+                Player player = event.getPlayer();
+                Location location = player.getEyeLocation();
+                ConcurrentMap<UUID, PlayerData> playerDataMap = plugin.getPlayerData();
+                UUID uniqueId = player.getUniqueId();
 
-                if (!location.getWorld().equals(playerData.getLocations()[0].getWorld())) {
+                if (!location.getWorld().equals(playerDataMap.get(uniqueId).getLocations()[0].getWorld())) {
                     // Detected a world change.
                     // In the event order listing above, this corresponds to (4) when RayTraceAntiXray is disabled in world B.
                     // The player's current world is world B since (2).
-                    playerData = new PlayerData(plugin.getLocations(event.getPlayer(), new VectorialLocation(location)));
-                    playerData.setCallable(new RayTraceCallable(playerData));
-                    plugin.getPlayerData().put(event.getPlayer().getUniqueId(), playerData);
+                    PlayerData playerData = new PlayerData(RayTraceAntiXray.getLocations(player, new VectorialLocation(location)));
+                    playerData.setCallable(new RayTraceCallable(plugin, playerData));
+                    playerDataMap.put(uniqueId, playerData);
                 }
 
                 return;
@@ -80,12 +88,18 @@ public final class PacketListener extends PacketAdapter {
                 return;
             }
 
-            if (!chunk.getLevel().getWorld().equals(playerData.getLocations()[0].getWorld())) {
+            CraftWorld world = chunk.getLevel().getWorld();
+            ConcurrentMap<UUID, PlayerData> playerDataMap = plugin.getPlayerData();
+            Player player = event.getPlayer();
+            UUID uniqueId = player.getUniqueId();
+            PlayerData playerData = playerDataMap.get(uniqueId);
+
+            if (!world.equals(playerData.getLocations()[0].getWorld())) {
                 // Detected a world change.
                 // We need the player's current location to construct a new player data instance.
-                Location location = event.getPlayer().getEyeLocation();
+                Location location = player.getEyeLocation();
 
-                if (!chunk.getLevel().getWorld().equals(location.getWorld())) {
+                if (!world.equals(location.getWorld())) {
                     // The player has changed the world again since this chunk packet was sent.
                     // (As described above, packets can be delayed.)
                     // Example event order for this case:
@@ -101,21 +115,21 @@ public final class PacketListener extends PacketAdapter {
                 }
 
                 // Renew the player data instance.
-                playerData = new PlayerData(plugin.getLocations(event.getPlayer(), new VectorialLocation(location)));
-                playerData.setCallable(new RayTraceCallable(playerData));
-                plugin.getPlayerData().put(event.getPlayer().getUniqueId(), playerData);
+                playerData = new PlayerData(RayTraceAntiXray.getLocations(player, new VectorialLocation(location)));
+                playerData.setCallable(new RayTraceCallable(plugin, playerData));
+                playerDataMap.put(uniqueId, playerData);
             }
 
             // We need to copy the chunk blocks because the same chunk packet could have been sent to multiple players.
             chunkBlocks = new ChunkBlocks(chunk, new HashMap<>(chunkBlocks.getBlocks()));
             playerData.getChunks().put(chunkBlocks.getKey(), chunkBlocks);
-        } else if (event.getPacketType() == PacketType.Play.Server.UNLOAD_CHUNK) {
+        } else if (packetType == PacketType.Play.Server.UNLOAD_CHUNK) {
             // Note that chunk unload packets aren't sent on world change and on respawn.
             // World changes are already handled above.
             // Technically removing chunks isn't necessary since we're using a weak reference to the chunk.
             StructureModifier<Integer> integers = event.getPacket().getIntegers();
             plugin.getPlayerData().get(event.getPlayer().getUniqueId()).getChunks().remove(new LongWrapper(ChunkPos.asLong(integers.read(0), integers.read(1))));
-        } else if (event.getPacketType() == PacketType.Play.Server.RESPAWN) {
+        } else if (packetType == PacketType.Play.Server.RESPAWN) {
             // As with world changes, chunk unload packets aren't sent on respawn.
             // All required chunks are (re)sent afterwards.
             // Thus we clear the chunks.
