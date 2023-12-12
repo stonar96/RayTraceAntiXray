@@ -5,14 +5,14 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
 
 import org.bukkit.Location;
-import org.bukkit.craftbukkit.v1_20_R1.CraftWorld;
+import org.bukkit.craftbukkit.v1_20_R2.CraftWorld;
 import org.bukkit.entity.Player;
 
 import com.comphenix.protocol.PacketType;
 import com.comphenix.protocol.events.ListenerPriority;
 import com.comphenix.protocol.events.PacketAdapter;
 import com.comphenix.protocol.events.PacketEvent;
-import com.comphenix.protocol.reflect.StructureModifier;
+import com.comphenix.protocol.wrappers.ChunkCoordIntPair;
 import com.vanillage.raytraceantixray.RayTraceAntiXray;
 import com.vanillage.raytraceantixray.data.ChunkBlocks;
 import com.vanillage.raytraceantixray.data.LongWrapper;
@@ -127,8 +127,8 @@ public final class PacketListener extends PacketAdapter {
             // Note that chunk unload packets aren't sent on world change and on respawn.
             // World changes are already handled above.
             // Technically removing chunks isn't necessary since we're using a weak reference to the chunk.
-            StructureModifier<Integer> integers = event.getPacket().getIntegers();
-            plugin.getPlayerData().get(event.getPlayer().getUniqueId()).getChunks().remove(new LongWrapper(ChunkPos.asLong(integers.read(0), integers.read(1))));
+            ChunkCoordIntPair chunkCoordIntPair = event.getPacket().getChunkCoordIntPairs().read(0);
+            plugin.getPlayerData().get(event.getPlayer().getUniqueId()).getChunks().remove(new LongWrapper(ChunkPos.asLong(chunkCoordIntPair.getChunkX(), chunkCoordIntPair.getChunkZ())));
         } else if (packetType == PacketType.Play.Server.RESPAWN) {
             // As with world changes, chunk unload packets aren't sent on respawn.
             // All required chunks are (re)sent afterwards.
