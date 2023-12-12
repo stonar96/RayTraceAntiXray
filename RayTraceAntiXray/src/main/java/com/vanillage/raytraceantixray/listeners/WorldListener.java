@@ -7,7 +7,7 @@ import java.util.stream.Collectors;
 
 import org.bukkit.World;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.craftbukkit.v1_20_R1.CraftWorld;
+import org.bukkit.craftbukkit.v1_20_R2.CraftWorld;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.world.WorldInitEvent;
