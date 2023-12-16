@@ -5,7 +5,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
 
 import org.bukkit.Location;
-import org.bukkit.craftbukkit.v1_20_R2.CraftWorld;
+import org.bukkit.craftbukkit.v1_20_R3.CraftWorld;
 import org.bukkit.entity.Player;
 
 import com.comphenix.protocol.PacketType;
