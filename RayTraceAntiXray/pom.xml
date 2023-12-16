@@ -3,7 +3,7 @@
   <parent>
     <groupId>com.vanillage.raytraceantixray</groupId>
     <artifactId>raytraceantixray-parent</artifactId>
-    <version>1.13.1</version>
+    <version>1.13.2</version>
   </parent>
   <artifactId>raytraceantixray</artifactId>
   <name>RayTraceAntiXray</name>
