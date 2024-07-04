@@ -12,10 +12,10 @@ import org.bukkit.command.TabExecutor;
 import com.vanillage.raytraceantixray.RayTraceAntiXray;
 
 public final class RayTraceAntiXrayTabExecutor implements TabExecutor {
-    private final RayTraceAntiXray plugin;
+    private final RayTraceAntiXray rayTraceAntiXray;
 
-    public RayTraceAntiXrayTabExecutor(RayTraceAntiXray plugin) {
-        this.plugin = plugin;
+    public RayTraceAntiXrayTabExecutor(RayTraceAntiXray rayTraceAntiXray) {
+        this.rayTraceAntiXray = rayTraceAntiXray;
     }
 
     @Override
@@ -61,7 +61,7 @@ public final class RayTraceAntiXrayTabExecutor implements TabExecutor {
                     } else if (args[1].toLowerCase(Locale.ROOT).equals("on")) {
                         if (sender.hasPermission("raytraceantixray.command.raytraceantixray.timings.on")) {
                             if (args.length == 2) {
-                                plugin.setTimingsEnabled(true);
+                                rayTraceAntiXray.setTimingsEnabled(true);
                                 sender.sendMessage("Timings turned on.");
                                 return true;
                             }
@@ -72,7 +72,7 @@ public final class RayTraceAntiXrayTabExecutor implements TabExecutor {
                     } else if (args[1].toLowerCase(Locale.ROOT).equals("off")) {
                         if (sender.hasPermission("raytraceantixray.command.raytraceantixray.timings.off")) {
                             if (args.length == 2) {
-                                plugin.setTimingsEnabled(false);
+                                rayTraceAntiXray.setTimingsEnabled(false);
                                 sender.sendMessage("Timings turned off.");
                                 return true;
                             }

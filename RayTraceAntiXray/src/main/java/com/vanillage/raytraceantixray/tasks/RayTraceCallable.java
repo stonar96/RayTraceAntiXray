@@ -35,7 +35,7 @@ import net.minecraft.world.level.chunk.PaletteResize;
 
 public final class RayTraceCallable implements Callable<Void> {
     private static final BlockState AIR = Blocks.AIR.defaultBlockState();
-    private final RayTraceAntiXray plugin;
+    private final RayTraceAntiXray rayTraceAntiXray;
     private final PlayerData playerData;
     private final CachedSectionBlockOcclusionGetter cachedSectionBlockOcclusionGetter;
     private final BlockOcclusionCulling blockOcclusionCulling;
@@ -45,8 +45,8 @@ public final class RayTraceCallable implements Callable<Void> {
     private final boolean rehideBlocks;
     private final double rehideDistanceSquared;
 
-    public RayTraceCallable(RayTraceAntiXray plugin, PlayerData playerData) {
-        this.plugin = plugin;
+    public RayTraceCallable(RayTraceAntiXray rayTraceAntiXray, PlayerData playerData) {
+        this.rayTraceAntiXray = rayTraceAntiXray;
         ChunkPacketBlockController chunkPacketBlockController = ((CraftWorld) playerData.getLocations()[0].getWorld()).getHandle().chunkPacketBlockController;
 
         if (!(chunkPacketBlockController instanceof ChunkPacketBlockControllerAntiXray)) {
@@ -240,7 +240,7 @@ public final class RayTraceCallable implements Callable<Void> {
         try {
             rayTrace();
         } catch (Throwable t) {
-            plugin.getLogger().log(Level.SEVERE, "An error occured on the RayTraceAntiXray tick thread", t);
+            rayTraceAntiXray.getPlugin().getLogger().log(Level.SEVERE, "An error occured on the RayTraceAntiXray tick thread", t);
             throw t;
         }
 

@@ -6,19 +6,19 @@ import java.util.concurrent.RejectedExecutionException;
 import com.vanillage.raytraceantixray.RayTraceAntiXray;
 
 public final class RayTraceTimerTask extends TimerTask {
-    private final RayTraceAntiXray plugin;
+    private final RayTraceAntiXray rayTraceAntiXray;
 
-    public RayTraceTimerTask(RayTraceAntiXray plugin) {
-        this.plugin = plugin;
+    public RayTraceTimerTask(RayTraceAntiXray rayTraceAntiXray) {
+        this.rayTraceAntiXray = rayTraceAntiXray;
     }
 
     @Override
     public void run() {
-        boolean timingsEnabled = plugin.isTimingsEnabled();
+        boolean timingsEnabled = rayTraceAntiXray.isTimingsEnabled();
         long start = timingsEnabled ? System.currentTimeMillis() : 0L;
 
         try {
-            plugin.getExecutorService().invokeAll(plugin.getPlayerData().values());
+            rayTraceAntiXray.getExecutorService().invokeAll(rayTraceAntiXray.getPlayerData().values());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } catch (RejectedExecutionException e) {
@@ -27,7 +27,7 @@ public final class RayTraceTimerTask extends TimerTask {
 
         if (timingsEnabled) {
             long stop = System.currentTimeMillis();
-            plugin.getLogger().info((stop - start) + "ms per ray trace tick.");
+            rayTraceAntiXray.getPlugin().getLogger().info((stop - start) + "ms per ray trace tick.");
         }
     }
 }

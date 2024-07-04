@@ -54,9 +54,10 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
 
     public static final Palette<BlockState> GLOBAL_BLOCKSTATE_PALETTE = new GlobalPalette<>(Block.BLOCK_STATE_REGISTRY);
     private static final LevelChunkSection EMPTY_SECTION = null;
-    private final RayTraceAntiXray plugin;
+    private final RayTraceAntiXray rayTraceAntiXray;
+    public final ChunkPacketBlockController previousChunkPacketBlockController;
     private final Executor executor;
-    private final EngineMode engineMode;
+    private final EngineMode engineMode = EngineMode.HIDE;
     private final int maxBlockHeight;
     private final int updateRadius;
     private final boolean usePermission;
@@ -83,12 +84,30 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
     private final LevelChunkSection[] emptyNearbyChunkSections = {EMPTY_SECTION, EMPTY_SECTION, EMPTY_SECTION, EMPTY_SECTION};
     private final int maxBlockHeightUpdatePosition;
 
-    public ChunkPacketBlockControllerAntiXray(RayTraceAntiXray plugin, boolean rayTraceThirdPerson, double rayTraceDistance, boolean rehideBlocks, double rehideDistance, int maxRayTraceBlockCountPerChunk, Iterable<? extends String> toTrace, Level level, Executor executor) {
-        this.plugin = plugin;
+    public ChunkPacketBlockControllerAntiXray(RayTraceAntiXray rayTraceAntiXray, ChunkPacketBlockController previousChunkPacketBlockController, boolean rayTraceThirdPerson, double rayTraceDistance, boolean rehideBlocks, double rehideDistance, int maxRayTraceBlockCountPerChunk, Iterable<? extends String> toTrace, Level level, Executor executor) {
+        this.rayTraceAntiXray = rayTraceAntiXray;
+        this.previousChunkPacketBlockController = previousChunkPacketBlockController;
         this.executor = executor;
         WorldConfiguration.Anticheat.AntiXray paperWorldConfig = level.paperConfig().anticheat.antiXray;
-        engineMode = paperWorldConfig.engineMode;
-        maxBlockHeight = paperWorldConfig.maxBlockHeight >> 4 << 4;
+
+        // Get the max block height from the previous controller if possible.
+        // Changing the height at runtime is dangerous because already loaded chunks may be prepared for that height by the previous controller.
+        // See #getPresetBlockStates(Level, ChunkPos, int).
+        if (previousChunkPacketBlockController instanceof ChunkPacketBlockControllerAntiXray) {
+            maxBlockHeight = ((ChunkPacketBlockControllerAntiXray) previousChunkPacketBlockController).maxBlockHeight;
+        } else if (previousChunkPacketBlockController instanceof io.papermc.paper.antixray.ChunkPacketBlockControllerAntiXray) {
+            // Assume that the previous controller uses engine-mode: 1.
+            try {
+                Field field = io.papermc.paper.antixray.ChunkPacketBlockControllerAntiXray.class.getDeclaredField("maxBlockHeight");
+                field.setAccessible(true);
+                maxBlockHeight = field.getInt(previousChunkPacketBlockController);
+            } catch (NoSuchFieldException | IllegalAccessException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            maxBlockHeight = paperWorldConfig.maxBlockHeight >> 4 << 4;
+        }
+
         updateRadius = paperWorldConfig.updateRadius;
         usePermission = paperWorldConfig.usePermission;
         this.rayTraceThirdPerson = rayTraceThirdPerson;
@@ -472,9 +491,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             }
         }
 
-        if (plugin.isRunning()) {
-            plugin.getPacketChunkBlocksCache().put(chunkPacketInfoAntiXray.getChunkPacket(), new ChunkBlocks(chunkPacketInfoAntiXray.getChunk(), blocks));
-        }
+        rayTraceAntiXray.getPacketChunkBlocksTransfer().put(chunkPacketInfoAntiXray.getChunkPacket(), new ChunkBlocks(chunkPacketInfoAntiXray.getChunk(), blocks));
 
         if (!blockEntities.isEmpty()) {
             try {

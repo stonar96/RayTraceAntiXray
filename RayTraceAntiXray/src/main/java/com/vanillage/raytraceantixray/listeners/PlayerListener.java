@@ -17,40 +17,40 @@ import com.vanillage.raytraceantixray.tasks.RayTraceCallable;
 import com.vanillage.raytraceantixray.tasks.UpdateBukkitRunnable;
 
 public final class PlayerListener implements Listener {
-    private final RayTraceAntiXray plugin;
+    private final RayTraceAntiXray rayTraceAntiXray;
 
-    public PlayerListener(RayTraceAntiXray plugin) {
-        this.plugin = plugin;
+    public PlayerListener(RayTraceAntiXray rayTraceAntiXray) {
+        this.rayTraceAntiXray = rayTraceAntiXray;
     }
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
 
-        if (!plugin.validatePlayer(player)) {
+        if (!rayTraceAntiXray.validatePlayer(player)) {
             return;
         }
 
         PlayerData playerData = new PlayerData(RayTraceAntiXray.getLocations(player, new VectorialLocation(player.getEyeLocation())));
-        playerData.setCallable(new RayTraceCallable(plugin, playerData));
-        plugin.getPlayerData().put(player.getUniqueId(), playerData);
+        playerData.setCallable(new RayTraceCallable(rayTraceAntiXray, playerData));
+        rayTraceAntiXray.getPlayerData().put(player.getUniqueId(), playerData);
 
-        if (plugin.isFolia()) {
-            player.getScheduler().runAtFixedRate(plugin, new UpdateBukkitRunnable(plugin, player), null, 1L, plugin.getUpdateTicks());
+        if (rayTraceAntiXray.isFolia()) {
+            player.getScheduler().runAtFixedRate(rayTraceAntiXray.getPlugin(), new UpdateBukkitRunnable(rayTraceAntiXray, player), null, 1L, rayTraceAntiXray.getUpdateTicks());
         }
     }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        plugin.getPlayerData().remove(event.getPlayer().getUniqueId());
+        rayTraceAntiXray.getPlayerData().remove(event.getPlayer().getUniqueId());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerMove(PlayerMoveEvent event) {
         Player player = event.getPlayer();
-        PlayerData playerData = plugin.getPlayerData().get(player.getUniqueId());
+        PlayerData playerData = rayTraceAntiXray.getPlayerData().get(player.getUniqueId());
 
-        if (!plugin.validatePlayerData(player, playerData, "onPlayerMove")) {
+        if (!rayTraceAntiXray.validatePlayerData(player, playerData, "onPlayerMove")) {
             return;
         }
 

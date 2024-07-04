@@ -24,11 +24,11 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.LevelChunk;
 
 public final class PacketListener extends PacketAdapter {
-    private final RayTraceAntiXray plugin;
+    private final RayTraceAntiXray rayTraceAntiXray;
 
-    public PacketListener(RayTraceAntiXray plugin) {
-        super(plugin, ListenerPriority.NORMAL, PacketType.Play.Server.MAP_CHUNK, PacketType.Play.Server.UNLOAD_CHUNK, PacketType.Play.Server.RESPAWN);
-        this.plugin = plugin;
+    public PacketListener(RayTraceAntiXray rayTraceAntiXray) {
+        super(rayTraceAntiXray.getPlugin(), ListenerPriority.NORMAL, PacketType.Play.Server.MAP_CHUNK, PacketType.Play.Server.UNLOAD_CHUNK, PacketType.Play.Server.RESPAWN);
+        this.rayTraceAntiXray = rayTraceAntiXray;
     }
 
     @Override
@@ -55,7 +55,7 @@ public final class PacketListener extends PacketAdapter {
             // Get the result from Anti-Xray for the current chunk packet.
             // We can't remove the entry because the same chunk packet can be sent to multiple players.
             // The garbage collector will remove the entry later since we're using a weak key map.
-            ChunkBlocks chunkBlocks = plugin.getPacketChunkBlocksCache().get(event.getPacket().getHandle());
+            ChunkBlocks chunkBlocks = rayTraceAntiXray.getPacketChunkBlocksTransfer().get(event.getPacket().getHandle());
 
             if (chunkBlocks == null) {
                 // RayTraceAntiXray is probably not enabled in this world (or other plugins bypass Anti-Xray).
@@ -63,11 +63,11 @@ public final class PacketListener extends PacketAdapter {
                 // Thus we use the player's current (more up to date) world instead.
                 Player player = event.getPlayer();
                 Location location = player.getEyeLocation();
-                ConcurrentMap<UUID, PlayerData> playerDataMap = plugin.getPlayerData();
+                ConcurrentMap<UUID, PlayerData> playerDataMap = rayTraceAntiXray.getPlayerData();
                 UUID uniqueId = player.getUniqueId();
                 PlayerData playerData = playerDataMap.get(uniqueId);
 
-                if (!plugin.validatePlayerData(player, playerData, "onPacketSending")) {
+                if (!rayTraceAntiXray.validatePlayerData(player, playerData, "onPacketSending")) {
                     return;
                 }
 
@@ -76,7 +76,7 @@ public final class PacketListener extends PacketAdapter {
                     // In the event order listing above, this corresponds to (4) when RayTraceAntiXray is disabled in world B.
                     // The player's current world is world B since (2).
                     playerData = new PlayerData(RayTraceAntiXray.getLocations(player, new VectorialLocation(location)));
-                    playerData.setCallable(new RayTraceCallable(plugin, playerData));
+                    playerData.setCallable(new RayTraceCallable(rayTraceAntiXray, playerData));
                     playerDataMap.put(uniqueId, playerData);
                 }
 
@@ -94,12 +94,12 @@ public final class PacketListener extends PacketAdapter {
             }
 
             CraftWorld world = chunk.getLevel().getWorld();
-            ConcurrentMap<UUID, PlayerData> playerDataMap = plugin.getPlayerData();
+            ConcurrentMap<UUID, PlayerData> playerDataMap = rayTraceAntiXray.getPlayerData();
             Player player = event.getPlayer();
             UUID uniqueId = player.getUniqueId();
             PlayerData playerData = playerDataMap.get(uniqueId);
 
-            if (!plugin.validatePlayerData(player, playerData, "onPacketSending")) {
+            if (!rayTraceAntiXray.validatePlayerData(player, playerData, "onPacketSending")) {
                 return;
             }
 
@@ -125,7 +125,7 @@ public final class PacketListener extends PacketAdapter {
 
                 // Renew the player data instance.
                 playerData = new PlayerData(RayTraceAntiXray.getLocations(player, new VectorialLocation(location)));
-                playerData.setCallable(new RayTraceCallable(plugin, playerData));
+                playerData.setCallable(new RayTraceCallable(rayTraceAntiXray, playerData));
                 playerDataMap.put(uniqueId, playerData);
             }
 
@@ -136,10 +136,13 @@ public final class PacketListener extends PacketAdapter {
             // Note that chunk unload packets aren't sent on world change and on respawn.
             // World changes are already handled above.
             // Technically removing chunks isn't necessary since we're using a weak reference to the chunk.
+            // However, we will remove them immediately so that we no longer have to take them into account.
+            // Also we shouldn't rely too much on the garbage collector because ZGC for example has issues with frequently dereferenced weak references.
+            // See https://mail.openjdk.org/pipermail/zgc-dev/2019-March/000594.html.
             Player player = event.getPlayer();
-            PlayerData playerData = plugin.getPlayerData().get(player.getUniqueId());
+            PlayerData playerData = rayTraceAntiXray.getPlayerData().get(player.getUniqueId());
 
-            if (!plugin.validatePlayerData(player, playerData, "onPacketSending")) {
+            if (!rayTraceAntiXray.validatePlayerData(player, playerData, "onPacketSending")) {
                 return;
             }
 
@@ -150,11 +153,14 @@ public final class PacketListener extends PacketAdapter {
             // All required chunks are (re)sent afterwards.
             // Thus we clear the chunks.
             // Technically this isn't necessary since we're using a weak reference to the chunk.
+            // However, we will remove them immediately so that we no longer have to take them into account.
+            // Also we shouldn't rely too much on the garbage collector because ZGC for example has issues with frequently dereferenced weak references.
+            // See https://mail.openjdk.org/pipermail/zgc-dev/2019-March/000594.html.
             // If respawning involves a world change, it will be handled in the next chunk packet event.
             Player player = event.getPlayer();
-            PlayerData playerData = plugin.getPlayerData().get(player.getUniqueId());
+            PlayerData playerData = rayTraceAntiXray.getPlayerData().get(player.getUniqueId());
 
-            if (!plugin.validatePlayerData(player, playerData, "onPacketSending")) {
+            if (!rayTraceAntiXray.validatePlayerData(player, playerData, "onPacketSending")) {
                 return;
             }
 

@@ -1,6 +1,6 @@
 package com.vanillage.raytraceantixray;
 
-import java.io.File;
+import java.lang.reflect.Field;
 import java.util.Timer;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -10,14 +10,15 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
+import org.bukkit.Server;
 import org.bukkit.World;
-import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.Configuration;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.entity.CraftEntity;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.PluginManager;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
 import com.comphenix.protocol.ProtocolLibrary;
@@ -45,30 +46,14 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
-public final class RayTraceAntiXray extends JavaPlugin {
-    // private volatile Configuration configuration;
-    private boolean folia = false;
-    private volatile boolean running = false;
-    private volatile boolean timingsEnabled = false;
-    private final ConcurrentMap<ClientboundLevelChunkWithLightPacket, ChunkBlocks> packetChunkBlocksCache = new MapMaker().weakKeys().makeMap();
-    private final ConcurrentMap<UUID, PlayerData> playerData = new ConcurrentHashMap<>();
-    private ExecutorService executorService;
-    private Timer timer;
-    private long updateTicks = 1L;
+public final class RayTraceAntiXray {
+    private final RayTraceAntiXrayPlugin plugin;
+    private final Configuration config;
+    private final long updateTicks;
+    private final boolean folia;
 
-    @Override
-    public void onEnable() {
-        if (!new File(getDataFolder(), "README.txt").exists()) {
-            saveResource("README.txt", false);
-        }
-
-        saveDefaultConfig();
-        FileConfiguration config = getConfig();
-        config.options().copyDefaults(true);
-        // Add defaults.
-        // saveConfig();
-        // configuration = config;
-        // Initialize stuff.
+    {
+        boolean folia = false;
 
         try {
             Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
@@ -77,6 +62,23 @@ public final class RayTraceAntiXray extends JavaPlugin {
 
         }
 
+        this.folia = folia;
+    }
+
+    private final ConcurrentMap<ClientboundLevelChunkWithLightPacket, ChunkBlocks> packetChunkBlocksTransfer = new MapMaker().weakKeys().makeMap();
+    private final ConcurrentMap<UUID, PlayerData> playerData = new ConcurrentHashMap<>();
+    private ExecutorService executorService;
+    private Timer timer;
+    private volatile boolean running = false;
+    private volatile boolean timingsEnabled = false;
+
+    public RayTraceAntiXray(RayTraceAntiXrayPlugin plugin, Configuration config) {
+        this.plugin = plugin;
+        this.config = config;
+        updateTicks = Math.max(config.getLong("settings.anti-xray.update-ticks"), 1L);
+    }
+
+    public void enable() {
         running = true;
         // Use a combination of a tick thread (timer) and a ray trace thread pool.
         // The timer schedules tasks (a task per player) to the thread pool and ensures a common and defined tick start and end time without overlap by waiting for the thread pool to finish all tasks.
@@ -85,32 +87,34 @@ public final class RayTraceAntiXray extends JavaPlugin {
         // Use a timer instead of a single thread scheduled executor because there is no equivalent for the timer's schedule method.
         timer = new Timer("RayTraceAntiXray tick thread", true);
         timer.schedule(new RayTraceTimerTask(this), 0L, Math.max(config.getLong("settings.anti-xray.ms-per-ray-trace-tick"), 1L));
-        updateTicks = Math.max(config.getLong("settings.anti-xray.update-ticks"), 1L);
 
         if (!folia) {
-            new UpdateBukkitRunnable(this).runTaskTimer(this, 0L, updateTicks);
+            new UpdateBukkitRunnable(this).runTaskTimer(plugin, 0L, updateTicks);
         }
 
-        // Register events.
-        PluginManager pluginManager = getServer().getPluginManager();
-        pluginManager.registerEvents(new WorldListener(this), this);
-        pluginManager.registerEvents(new PlayerListener(this), this);
+        PluginManager pluginManager = plugin.getServer().getPluginManager();
+        // Especially on Folia the order is important here.
+        pluginManager.registerEvents(new WorldListener(this), plugin);
+        // Handle missed world events.
+        pluginManager.registerEvents(new PlayerListener(this), plugin);
+        // Register player join event.
+        // Handle missed player join events.
+        // What if the player quit in the meantime?
+        // Register player events.
         ProtocolLibrary.getProtocolManager().addPacketListener(new PacketListener(this));
-        // registerCommands();
-        getCommand("raytraceantixray").setExecutor(new RayTraceAntiXrayTabExecutor(this));
-        getLogger().info(getPluginMeta().getDisplayName() + " enabled");
+        plugin.getCommand("raytraceantixray").setExecutor(new RayTraceAntiXrayTabExecutor(this));
+        // Handle missed events.
     }
 
-    @Override
-    public void onDisable() {
-        // The server catches all throwables and may continue to run after disabling this plugin.
+    public void disable() {
+        // The server catches all throwables and may continue to run after disabling this instance.
         // We want to ensure as much as possible that everything is left behind in a clean and defined state.
         // So the goal is to at least attempt to execute all critical sections of code, regardless of what happens before.
         // Considering errors during error handling and JLS 11.1.3. Asynchronous Exceptions, throwables could potentially be thrown anywhere (even between blocks of code or statements?).
         // Thus the only way is to nest try-finally statements like this: try { try { } finally { } } finally { }
         // According to the bytecode of nested try-catch statements in JVMS 3.12, all nested try blocks are entered at the same time.
         // So we either reach the innermost try block, in which case all blocks will be at least attempt to be executed, or no block is entered at all (e.g. in case of a throwable being thrown before).
-        // Both outcomes yield a defined state of this plugin.
+        // Both outcomes yield a defined state of this instance.
         // A more intuitive way would be to nest inside of the finally clause like this: try { } finally { try { } finally { } }
         // However, this doesn't provide the same guarantees as described above.
         // Additionally, we can add catch clauses to collect suppressed exceptions and rethrow in the last finally clause.
@@ -121,12 +125,16 @@ public final class RayTraceAntiXray extends JavaPlugin {
                 try {
                     try {
                         try {
-                            // unregisterCommands();
+                            running = false;
+                            plugin.getCommand("raytraceantixray").setExecutor(null);
                         } catch (Throwable t) {
                             throwable = t;
                         } finally {
-                            // Cleanup stuff.
-                            ProtocolLibrary.getProtocolManager().removePacketListeners(this);
+                            ProtocolLibrary.getProtocolManager().removePacketListeners(plugin);
+                            HandlerList.unregisterAll(plugin);
+                            Server server = plugin.getServer();
+                            server.getScheduler().cancelTasks(plugin);
+                            server.getAsyncScheduler().cancelTasks(plugin);
                         }
                     } catch (Throwable t) {
                         if (throwable == null) {
@@ -135,7 +143,6 @@ public final class RayTraceAntiXray extends JavaPlugin {
                             throwable.addSuppressed(t);
                         }
                     } finally {
-                        running = false;
                         timer.cancel();
                     }
                 } catch (Throwable t) {
@@ -161,7 +168,7 @@ public final class RayTraceAntiXray extends JavaPlugin {
                     throwable.addSuppressed(t);
                 }
             } finally {
-                packetChunkBlocksCache.clear();
+                packetChunkBlocksTransfer.clear();
                 playerData.clear();
             }
         } catch (Throwable t) {
@@ -176,49 +183,34 @@ public final class RayTraceAntiXray extends JavaPlugin {
                 throw new RuntimeException(throwable);
             }
         }
-
-        getLogger().info(getPluginMeta().getDisplayName() + " disabled");
     }
 
-    /* public synchronized void onReload() {
-        Throwable throwable = null;
+    public RayTraceAntiXrayPlugin getPlugin() {
+        return plugin;
+    }
 
-        try {
-            try {
-                // Cleanup stuff.
-            } catch (Throwable t) {
-                throwable = t;
-            } finally {
-                if (throwable != null) {
-                    getServer().getPluginManager().disablePlugin(this);
-                }
-            }
-        } catch (Throwable t) {
-            if (throwable == null) {
-                throwable = t;
-            } else {
-                throwable.addSuppressed(t);
-            }
-        } finally {
-            if (throwable != null) {
-                Throwables.throwIfUnchecked(throwable);
-                throw new RuntimeException(throwable);
-            }
-        }
+    public Configuration getConfig() {
+        return config;
+    }
 
-        saveDefaultConfig();
-        reloadConfig();
-        FileConfiguration config = getConfig();
-        config.options().copyDefaults(true);
-        // Add defaults.
-        // saveConfig();
-        // configuration = config;
-        // Initialize stuff.
-        getLogger().info(getPluginMeta().getDisplayName() + " reloaded");
-    } */
+    public long getUpdateTicks() {
+        return updateTicks;
+    }
 
     public boolean isFolia() {
         return folia;
+    }
+
+    public ConcurrentMap<ClientboundLevelChunkWithLightPacket, ChunkBlocks> getPacketChunkBlocksTransfer() {
+        return packetChunkBlocksTransfer;
+    }
+
+    public ConcurrentMap<UUID, PlayerData> getPlayerData() {
+        return playerData;
+    }
+
+    public ExecutorService getExecutorService() {
+        return executorService;
     }
 
     public boolean isRunning() {
@@ -233,31 +225,41 @@ public final class RayTraceAntiXray extends JavaPlugin {
         this.timingsEnabled = timingsEnabled;
     }
 
-    public ConcurrentMap<ClientboundLevelChunkWithLightPacket, ChunkBlocks> getPacketChunkBlocksCache() {
-        return packetChunkBlocksCache;
-    }
-
-    public ConcurrentMap<UUID, PlayerData> getPlayerData() {
-        return playerData;
-    }
-
-    public ExecutorService getExecutorService() {
-        return executorService;
-    }
-
-    public long getUpdateTicks() {
-        return updateTicks;
-    }
-
     public boolean isEnabled(World world) {
-        AntiXray antiXray = ((CraftWorld) world).getHandle().paperConfig().anticheat.antiXray;
-
-        if (antiXray.enabled && antiXray.engineMode == EngineMode.HIDE) {
-            FileConfiguration config = getConfig();
-            return config.getBoolean("world-settings." + world.getName() + ".anti-xray.ray-trace", config.getBoolean("world-settings.default.anti-xray.ray-trace"));
+        // Note that Paper Anti-Xray config changes are usually not applied when reloading the server.
+        // However, for RayTraceAntiXray we implement this.
+        // To do this safely, the following checks are required.
+        // In particular, engine-mode: 1 must have already been active before.
+        // Also note that max-block-height shouldn't be increased (see related logic in ChunkPacketBlockControllerAntiXray).
+        if (!config.getBoolean("world-settings." + world.getName() + ".anti-xray.ray-trace", config.getBoolean("world-settings.default.anti-xray.ray-trace"))) {
+            return false;
         }
 
-        return false;
+        ServerLevel serverLevel = ((CraftWorld) world).getHandle();
+        AntiXray antiXray = serverLevel.paperConfig().anticheat.antiXray;
+
+        if (!antiXray.enabled || antiXray.engineMode != EngineMode.HIDE) {
+            return false;
+        }
+
+        ChunkPacketBlockController chunkPacketBlockController = serverLevel.chunkPacketBlockController;
+
+        if (chunkPacketBlockController instanceof ChunkPacketBlockControllerAntiXray) {
+            // Actually we shouldn't get here but it doesn't matter.
+            return true;
+        }
+
+        if (!(chunkPacketBlockController instanceof io.papermc.paper.antixray.ChunkPacketBlockControllerAntiXray)) {
+            return false;
+        }
+
+        try {
+            Field field = io.papermc.paper.antixray.ChunkPacketBlockControllerAntiXray.class.getDeclaredField("engineMode");
+            field.setAccessible(true);
+            return field.get(chunkPacketBlockController) == EngineMode.HIDE;
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public boolean validatePlayer(Player player) {
@@ -265,22 +267,27 @@ public final class RayTraceAntiXray extends JavaPlugin {
     }
 
     public boolean validatePlayerData(Player player, PlayerData playerData, String methodName) {
-        if (playerData == null) {
-            if (validatePlayer(player)) {
-                // TODO: More logic and logging will be added here once we support reloading.
-                Logger logger = getLogger();
-                logger.warning("Missing player data detected for player " + player.getName() + " in method " + methodName);
-                logger.warning("Please note that reloading this plugin isn't yet supported");
-                logger.warning("Also make sure you are using the correct plugin version for your Minecraft version");
-                logger.warning("Please restart your server");
-                // Let the caller fail hard to print a stack trace.
-                return true;
-            }
+        if (playerData != null) {
+            return true;
+        }
 
+        if (!validatePlayer(player)) {
             return false;
         }
 
-        return true;
+        if (running) {
+            // We have no explanation.
+            // Let the caller fail hard to print a stack trace.
+            return true;
+        }
+
+        Logger logger = plugin.getLogger();
+        logger.warning("The method " + methodName + " has been called for player " + player.getName() + " for a disabled instance");
+        logger.warning("This can happen for a short time after the plugin has been disabled or reloaded");
+        logger.warning("Otherwise, please restart your server and consider reporting the issue");
+        // On Paper this should actually never happen.
+        // Let the caller fail hard on Paper to print a stack trace.
+        return !folia;
     }
 
     public static VectorialLocation[] getLocations(Entity entity, VectorialLocation location) {
