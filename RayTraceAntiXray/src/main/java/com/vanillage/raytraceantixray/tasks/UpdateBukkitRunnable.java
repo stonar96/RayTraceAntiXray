@@ -30,22 +30,22 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 public final class UpdateBukkitRunnable extends BukkitRunnable implements Consumer<ScheduledTask> {
-    private final RayTraceAntiXray plugin;
+    private final RayTraceAntiXray rayTraceAntiXray;
     private final Player player;
 
-    public UpdateBukkitRunnable(RayTraceAntiXray plugin) {
-        this(plugin, null);
+    public UpdateBukkitRunnable(RayTraceAntiXray rayTraceAntiXray) {
+        this(rayTraceAntiXray, null);
     }
 
-    public UpdateBukkitRunnable(RayTraceAntiXray plugin, Player player) {
-        this.plugin = plugin;
+    public UpdateBukkitRunnable(RayTraceAntiXray rayTraceAntiXray, Player player) {
+        this.rayTraceAntiXray = rayTraceAntiXray;
         this.player = player;
     }
 
     @Override
     public void run() {
         if (player == null) {
-            plugin.getServer().getOnlinePlayers().forEach(this::update);
+            rayTraceAntiXray.getPlugin().getServer().getOnlinePlayers().forEach(this::update);
         } else {
             update(player);
         }
@@ -57,9 +57,9 @@ public final class UpdateBukkitRunnable extends BukkitRunnable implements Consum
     }
 
     public void update(Player player) {
-        PlayerData playerData = plugin.getPlayerData().get(player.getUniqueId());
+        PlayerData playerData = rayTraceAntiXray.getPlayerData().get(player.getUniqueId());
 
-        if (!plugin.validatePlayerData(player, playerData, "update")) {
+        if (!rayTraceAntiXray.validatePlayerData(player, playerData, "update")) {
             return;
         }
 

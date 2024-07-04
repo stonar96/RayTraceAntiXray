@@ -99,10 +99,10 @@ public final class BlockIterator implements Iterator<int[]> {
         this.x = x;
         this.y = y;
         this.z = z;
-        tMax = distance;
         stepX = directionX < 0. ? -1 : 1;
         stepY = directionY < 0. ? -1 : 1;
         stepZ = directionZ < 0. ? -1 : 1;
+        tMax = distance;
         tMaxX = directionX == 0. ? Double.POSITIVE_INFINITY : (x + (stepX + 1) / 2 - startX) / directionX;
         tMaxY = directionY == 0. ? Double.POSITIVE_INFINITY : (y + (stepY + 1) / 2 - startY) / directionY;
         tMaxZ = directionZ == 0. ? Double.POSITIVE_INFINITY : (z + (stepZ + 1) / 2 - startZ) / directionZ;
