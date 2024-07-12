@@ -9,8 +9,10 @@ import com.vanillage.raytraceantixray.data.ChunkBlocks;
 
 import io.papermc.paper.configuration.WorldConfiguration;
 import io.papermc.paper.configuration.type.EngineMode;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -20,9 +22,11 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.IntSupplier;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.BlockPos.MutableBlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.protocol.game.ClientboundLevelChunkPacketData;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.resources.ResourceLocation;
@@ -74,6 +78,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
     public final boolean[] solidGlobal = new boolean[Block.BLOCK_STATE_REGISTRY.size()];
     private final boolean[] obfuscateGlobal = new boolean[Block.BLOCK_STATE_REGISTRY.size()];
     private final boolean[] traceGlobal;
+    private final boolean[] blockEntityGlobal = new boolean[Block.BLOCK_STATE_REGISTRY.size()];
     private final LevelChunkSection[] emptyNearbyChunkSections = {EMPTY_SECTION, EMPTY_SECTION, EMPTY_SECTION, EMPTY_SECTION};
     private final int maxBlockHeightUpdatePosition;
 
@@ -177,6 +182,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             BlockState blockState = GLOBAL_BLOCKSTATE_PALETTE.valueFor(i);
 
             if (blockState != null) {
+                blockEntityGlobal[i] = blockState.hasBlockEntity();
                 solidGlobal[i] = blockState.isRedstoneConductor(emptyChunk, zeroPos)
                     && blockState.getBlock() != Blocks.SPAWNER && blockState.getBlock() != Blocks.BARRIER && blockState.getBlock() != Blocks.SHULKER_BOX && blockState.getBlock() != Blocks.SLIME_BLOCK && blockState.getBlock() != Blocks.MANGROVE_ROOTS || paperWorldConfig.lavaObscures && blockState == Blocks.LAVA.defaultBlockState();
                 // Comparing blockState == Blocks.LAVA.defaultBlockState() instead of blockState.getBlock() == Blocks.LAVA ensures that only "stationary lava" is used
@@ -252,21 +258,42 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
     private static final ThreadLocal<boolean[]> SOLID = ThreadLocal.withInitial(() -> new boolean[Block.BLOCK_STATE_REGISTRY.size()]);
     private static final ThreadLocal<boolean[]> OBFUSCATE = ThreadLocal.withInitial(() -> new boolean[Block.BLOCK_STATE_REGISTRY.size()]);
     private static final ThreadLocal<boolean[]> TRACE = ThreadLocal.withInitial(() -> new boolean[Block.BLOCK_STATE_REGISTRY.size()]);
+    private static final ThreadLocal<boolean[]> BLOCK_ENTITY = ThreadLocal.withInitial(() -> new boolean[Block.BLOCK_STATE_REGISTRY.size()]);
     // These boolean arrays represent chunk layers, true means don't obfuscate, false means obfuscate
     private static final ThreadLocal<boolean[][]> CURRENT = ThreadLocal.withInitial(() -> new boolean[16][16]);
     private static final ThreadLocal<boolean[][]> NEXT = ThreadLocal.withInitial(() -> new boolean[16][16]);
     private static final ThreadLocal<boolean[][]> NEXT_NEXT = ThreadLocal.withInitial(() -> new boolean[16][16]);
     private static final ThreadLocal<boolean[][]> TRACE_CACHE = ThreadLocal.withInitial(() -> new boolean[16][16]);
+    private static final ThreadLocal<boolean[][]> BLOCK_ENTITY_CACHE = ThreadLocal.withInitial(() -> new boolean[16][16]);
+    private static final Field BLOCK_ENTITIES_DATA_FIELD;
+    private static final Field PACKED_X_Z_FIELD;
+    private static final Field Y_FIELD;
+
+    static {
+        try {
+            BLOCK_ENTITIES_DATA_FIELD = ClientboundLevelChunkPacketData.class.getDeclaredField("blockEntitiesData");
+            BLOCK_ENTITIES_DATA_FIELD.setAccessible(true);
+            Class<?> blockEntityInfoClass = Class.forName("net.minecraft.network.protocol.game.ClientboundLevelChunkPacketData$BlockEntityInfo");
+            PACKED_X_Z_FIELD = blockEntityInfoClass.getDeclaredField("packedXZ");
+            PACKED_X_Z_FIELD.setAccessible(true);
+            Y_FIELD = blockEntityInfoClass.getDeclaredField("y");
+            Y_FIELD.setAccessible(true);
+        } catch (NoSuchFieldException | ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     public void obfuscate(ChunkPacketInfoAntiXray chunkPacketInfoAntiXray) {
         int[] presetBlockStateBits = this.presetBlockStateBits.get();
         boolean[] solid = SOLID.get();
         boolean[] obfuscate = OBFUSCATE.get();
         boolean[] trace = traceGlobal == obfuscateGlobal ? obfuscate : TRACE.get();
+        boolean[] blockEntity = BLOCK_ENTITY.get();
         boolean[][] current = CURRENT.get();
         boolean[][] next = NEXT.get();
         boolean[][] nextNext = NEXT_NEXT.get();
         boolean[][] traceCache = TRACE_CACHE.get();
+        boolean[][] blockEntityCache = BLOCK_ENTITY_CACHE.get();
         // bitStorageReader, bitStorageWriter and nearbyChunkSections could also be reused (with ThreadLocal if necessary) but it's not worth it
         BitStorageReader bitStorageReader = new BitStorageReader();
         BitStorageWriter bitStorageWriter = new BitStorageWriter();
@@ -277,6 +304,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         boolean[] solidTemp = null;
         boolean[] obfuscateTemp = null;
         boolean[] traceTemp = null;
+        boolean[] blockEntityTemp = null;
         bitStorageReader.setBuffer(chunkPacketInfoAntiXray.getBuffer());
         bitStorageWriter.setBuffer(chunkPacketInfoAntiXray.getBuffer());
         int numberOfBlocks = presetBlockStateBits.length;
@@ -323,6 +351,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             }
         };
         HashMap<BlockPos, Boolean> blocks = new HashMap<>();
+        HashSet<BlockPos> blockEntities = new HashSet<>();
 
         for (int chunkSectionIndex = 0; chunkSectionIndex <= maxChunkSectionIndex; chunkSectionIndex++) {
             if (chunkPacketInfoAntiXray.isWritten(chunkSectionIndex) && chunkPacketInfoAntiXray.getPresetValues(chunkSectionIndex) != null) {
@@ -365,6 +394,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                     solidTemp = readPalette(chunkPacketInfoAntiXray.getPalette(chunkSectionIndex), solid, solidGlobal);
                     obfuscateTemp = readPalette(chunkPacketInfoAntiXray.getPalette(chunkSectionIndex), obfuscate, obfuscateGlobal);
                     traceTemp = trace == obfuscate ? obfuscateTemp : readPalette(chunkPacketInfoAntiXray.getPalette(chunkSectionIndex), trace, traceGlobal);
+                    blockEntityTemp = readPalette(chunkPacketInfoAntiXray.getPalette(chunkSectionIndex), blockEntity, blockEntityGlobal);
                     // Read the blocks of the upper layer of the chunk section below if it exists
                     LevelChunkSection belowChunkSection = null;
                     boolean skipFirstLayer = chunkSectionIndex == 0 || (belowChunkSection = chunk.getSections()[chunkSectionIndex - 1]) == EMPTY_SECTION;
@@ -379,7 +409,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
 
                     // Abuse the obfuscateLayer method to read the blocks of the first layer of the current chunk section
                     bitStorageWriter.setBits(0);
-                    obfuscateLayer(chunk.getPos(), chunk.getMinSection(), chunkSectionIndex, -1, bitStorageReader, bitStorageWriter, solidTemp, obfuscateTemp, traceTemp, presetBlockStateBitsTemp, current, next, nextNext, traceCache, emptyNearbyChunkSections, random, blocks);
+                    obfuscateLayer(chunk.getPos(), chunk.getMinSection(), chunkSectionIndex, -1, bitStorageReader, bitStorageWriter, solidTemp, obfuscateTemp, traceTemp, blockEntityTemp, presetBlockStateBitsTemp, current, next, nextNext, traceCache, blockEntityCache, emptyNearbyChunkSections, random, blocks, blockEntities);
                 }
 
                 bitStorageWriter.setBits(chunkPacketInfoAntiXray.getBits(chunkSectionIndex));
@@ -395,7 +425,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                     next = nextNext;
                     nextNext = temp;
                     random.nextLayer();
-                    obfuscateLayer(chunk.getPos(), chunk.getMinSection(), chunkSectionIndex, y, bitStorageReader, bitStorageWriter, solidTemp, obfuscateTemp, traceTemp, presetBlockStateBitsTemp, current, next, nextNext, traceCache, nearbyChunkSections, random, blocks);
+                    obfuscateLayer(chunk.getPos(), chunk.getMinSection(), chunkSectionIndex, y, bitStorageReader, bitStorageWriter, solidTemp, obfuscateTemp, traceTemp, blockEntityTemp, presetBlockStateBitsTemp, current, next, nextNext, traceCache, blockEntityCache, nearbyChunkSections, random, blocks, blockEntities);
                 }
 
                 // Check if the chunk section above doesn't need obfuscation
@@ -420,7 +450,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                     bitStorageReader.setBits(0);
                     solid[0] = true;
                     random.nextLayer();
-                    obfuscateLayer(chunk.getPos(), chunk.getMinSection(), chunkSectionIndex, 15, bitStorageReader, bitStorageWriter, solid, obfuscateTemp, traceTemp, presetBlockStateBitsTemp, current, next, nextNext, traceCache, nearbyChunkSections, random, blocks);
+                    obfuscateLayer(chunk.getPos(), chunk.getMinSection(), chunkSectionIndex, 15, bitStorageReader, bitStorageWriter, solid, obfuscateTemp, traceTemp, blockEntityTemp, presetBlockStateBitsTemp, current, next, nextNext, traceCache, blockEntityCache, nearbyChunkSections, random, blocks, blockEntities);
                 } else {
                     // If not, initialize the reader and other stuff for the chunk section above to obfuscate the upper layer of the current chunk section
                     bitStorageReader.setBits(chunkPacketInfoAntiXray.getBits(chunkSectionIndex + 1));
@@ -428,12 +458,13 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                     solidTemp = readPalette(chunkPacketInfoAntiXray.getPalette(chunkSectionIndex + 1), solid, solidGlobal);
                     obfuscateTemp = readPalette(chunkPacketInfoAntiXray.getPalette(chunkSectionIndex + 1), obfuscate, obfuscateGlobal);
                     traceTemp = trace == obfuscate ? obfuscateTemp : readPalette(chunkPacketInfoAntiXray.getPalette(chunkSectionIndex + 1), trace, traceGlobal);
+                    blockEntityTemp = readPalette(chunkPacketInfoAntiXray.getPalette(chunkSectionIndex + 1), blockEntity, blockEntityGlobal);
                     boolean[][] temp = current;
                     current = next;
                     next = nextNext;
                     nextNext = temp;
                     random.nextLayer();
-                    obfuscateLayer(chunk.getPos(), chunk.getMinSection(), chunkSectionIndex, 15, bitStorageReader, bitStorageWriter, solidTemp, obfuscateTemp, traceTemp, presetBlockStateBitsTemp, current, next, nextNext, traceCache, nearbyChunkSections, random, blocks);
+                    obfuscateLayer(chunk.getPos(), chunk.getMinSection(), chunkSectionIndex, 15, bitStorageReader, bitStorageWriter, solidTemp, obfuscateTemp, traceTemp, blockEntityTemp, presetBlockStateBitsTemp, current, next, nextNext, traceCache, blockEntityCache, nearbyChunkSections, random, blocks, blockEntities);
                 }
 
                 bitStorageWriter.flush();
@@ -444,10 +475,32 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             plugin.getPacketChunkBlocksCache().put(chunkPacketInfoAntiXray.getChunkPacket(), new ChunkBlocks(chunkPacketInfoAntiXray.getChunk(), blocks));
         }
 
+        if (!blockEntities.isEmpty()) {
+            try {
+                List<?> blockEntitiesData = (List<?>) BLOCK_ENTITIES_DATA_FIELD.get(chunkPacketInfoAntiXray.getChunkPacket().getChunkData());
+                ChunkPos chunkPos = chunk.getPos();
+                int minX = chunkPos.getMinBlockX();
+                int minZ = chunkPos.getMinBlockZ();
+                MutableBlockPos mutableBlockPos = new MutableBlockPos();
+
+                blockEntitiesData.removeIf(blockEntityData -> {
+                    try {
+                        int packedXZ = PACKED_X_Z_FIELD.getInt(blockEntityData);
+                        return blockEntities.contains(mutableBlockPos.set(minX + (packedXZ >>> 4), Y_FIELD.getInt(blockEntityData), minZ + (packedXZ & 15)));
+                    } catch (IllegalAccessException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+                // TODO: Also remove from chunkPacketInfoAntiXray.getChunkPacket().getExtraPackets(), however, it's unlikely that it contains anything.
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
         chunkPacketInfoAntiXray.getChunkPacket().setReady(true);
     }
 
-    private void obfuscateLayer(ChunkPos chunkPos, int minSection, int chunkSectionIndex, int y, BitStorageReader bitStorageReader, BitStorageWriter bitStorageWriter, boolean[] solid, boolean[] obfuscate, boolean[] trace, int[] presetBlockStateBits, boolean[][] current, boolean[][] next, boolean[][] nextNext, boolean[][] traceCache, LevelChunkSection[] nearbyChunkSections, IntSupplier random, Map<? super BlockPos, ? super Boolean> blocks) {
+    private void obfuscateLayer(ChunkPos chunkPos, int minSection, int chunkSectionIndex, int y, BitStorageReader bitStorageReader, BitStorageWriter bitStorageWriter, boolean[] solid, boolean[] obfuscate, boolean[] trace, boolean[] blockEntity, int[] presetBlockStateBits, boolean[][] current, boolean[][] next, boolean[][] nextNext, boolean[][] traceCache, boolean[][] blockEntityCache, LevelChunkSection[] nearbyChunkSections, IntSupplier random, Map<? super BlockPos, ? super Boolean> blocks, Set<? super BlockPos> blockEntities) {
         int minX = chunkPos.getMinBlockX();
         int minZ = chunkPos.getMinBlockZ();
         int realY = (chunkSectionIndex + minSection << 4) + y;
@@ -457,7 +510,12 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         if (nextNext[0][0] = !solid[bits]) {
             if (traceCache[0][0] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                 bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                blocks.put(new BlockPos(minX + 0, realY, minZ + 0), true);
+                BlockPos block = new BlockPos(minX + 0, realY, minZ + 0);
+                blocks.put(block, true);
+
+                if (blockEntityCache[0][0]) {
+                    blockEntities.add(block);
+                }
             } else {
                 bitStorageWriter.skip();
             }
@@ -468,22 +526,34 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             if (current[0][0] || isTransparent(nearbyChunkSections[2], 0, y, 15) || isTransparent(nearbyChunkSections[0], 15, y, 0)) {
                 if (traceCache[0][0] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                     bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                    blocks.put(new BlockPos(minX + 0, realY, minZ + 0), true);
+                    BlockPos block = new BlockPos(minX + 0, realY, minZ + 0);
+                    blocks.put(block, true);
+
+                    if (blockEntityCache[0][0]) {
+                        blockEntities.add(block);
+                    }
                 } else {
                     bitStorageWriter.skip();
                 }
             } else {
                 bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Not exposed to air
+
+                if (blockEntityCache[0][0]) {
+                    blockEntities.add(new BlockPos(minX + 0, realY, minZ + 0));
+                }
             }
         }
 
         if (trace[bits]) {
             traceCache[0][0] = true;
+            blockEntityCache[0][0] = blockEntity[bits];
         } else {
             traceCache[0][0] = false;
 
             if (!obfuscate[bits]) {
                 next[0][0] = true;
+            } else {
+                blockEntityCache[0][0] = blockEntity[bits];
             }
         }
 
@@ -494,7 +564,12 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             if (nextNext[0][x] = !solid[bits]) {
                 if (traceCache[0][x] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                     bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                    blocks.put(new BlockPos(minX + x, realY, minZ + 0), true);
+                    BlockPos block = new BlockPos(minX + x, realY, minZ + 0);
+                    blocks.put(block, true);
+
+                    if (blockEntityCache[0][x]) {
+                        blockEntities.add(block);
+                    }
                 } else {
                     bitStorageWriter.skip();
                 }
@@ -506,22 +581,34 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                 if (current[0][x] || isTransparent(nearbyChunkSections[2], x, y, 15)) {
                     if (traceCache[0][x] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                         bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                        blocks.put(new BlockPos(minX + x, realY, minZ + 0), true);
+                        BlockPos block = new BlockPos(minX + x, realY, minZ + 0);
+                        blocks.put(block, true);
+
+                        if (blockEntityCache[0][x]) {
+                            blockEntities.add(block);
+                        }
                     } else {
                         bitStorageWriter.skip();
                     }
                 } else {
                     bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Not exposed to air
+
+                    if (blockEntityCache[0][x]) {
+                        blockEntities.add(new BlockPos(minX + x, realY, minZ + 0));
+                    }
                 }
             }
 
             if (trace[bits]) {
                 traceCache[0][x] = true;
+                blockEntityCache[0][x] = blockEntity[bits];
             } else {
                 traceCache[0][x] = false;
 
                 if (!obfuscate[bits]) {
                     next[0][x] = true;
+                } else {
+                    blockEntityCache[0][x] = blockEntity[bits];
                 }
             }
         }
@@ -532,7 +619,12 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         if (nextNext[0][15] = !solid[bits]) {
             if (traceCache[0][15] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                 bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                blocks.put(new BlockPos(minX + 15, realY, minZ + 0), true);
+                BlockPos block = new BlockPos(minX + 15, realY, minZ + 0);
+                blocks.put(block, true);
+
+                if (blockEntityCache[0][15]) {
+                    blockEntities.add(block);
+                }
             } else {
                 bitStorageWriter.skip();
             }
@@ -543,22 +635,34 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             if (current[0][15] || isTransparent(nearbyChunkSections[2], 15, y, 15) || isTransparent(nearbyChunkSections[1], 0, y, 0)) {
                 if (traceCache[0][15] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                     bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                    blocks.put(new BlockPos(minX + 15, realY, minZ + 0), true);
+                    BlockPos block = new BlockPos(minX + 15, realY, minZ + 0);
+                    blocks.put(block, true);
+
+                    if (blockEntityCache[0][15]) {
+                        blockEntities.add(block);
+                    }
                 } else {
                     bitStorageWriter.skip();
                 }
             } else {
                 bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Not exposed to air
+
+                if (blockEntityCache[0][15]) {
+                    blockEntities.add(new BlockPos(minX + 15, realY, minZ + 0));
+                }
             }
         }
 
         if (trace[bits]) {
             traceCache[0][15] = true;
+            blockEntityCache[0][15] = blockEntity[bits];
         } else {
             traceCache[0][15] = false;
 
             if (!obfuscate[bits]) {
                 next[0][15] = true;
+            } else {
+                blockEntityCache[0][15] = blockEntity[bits];
             }
         }
 
@@ -570,7 +674,12 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             if (nextNext[z][0] = !solid[bits]) {
                 if (traceCache[z][0] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                     bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                    blocks.put(new BlockPos(minX + 0, realY, minZ + z), true);
+                    BlockPos block = new BlockPos(minX + 0, realY, minZ + z);
+                    blocks.put(block, true);
+
+                    if (blockEntityCache[z][0]) {
+                        blockEntities.add(block);
+                    }
                 } else {
                     bitStorageWriter.skip();
                 }
@@ -582,22 +691,34 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                 if (current[z][0] || isTransparent(nearbyChunkSections[0], 15, y, z)) {
                     if (traceCache[z][0] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                         bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                        blocks.put(new BlockPos(minX + 0, realY, minZ + z), true);
+                        BlockPos block = new BlockPos(minX + 0, realY, minZ + z);
+                        blocks.put(block, true);
+
+                        if (blockEntityCache[z][0]) {
+                            blockEntities.add(block);
+                        }
                     } else {
                         bitStorageWriter.skip();
                     }
                 } else {
                     bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Not exposed to air
+
+                    if (blockEntityCache[z][0]) {
+                        blockEntities.add(new BlockPos(minX + 0, realY, minZ + z));
+                    }
                 }
             }
 
             if (trace[bits]) {
                 traceCache[z][0] = true;
+                blockEntityCache[z][0] = blockEntity[bits];
             } else {
                 traceCache[z][0] = false;
 
                 if (!obfuscate[bits]) {
                     next[z][0] = true;
+                } else {
+                    blockEntityCache[z][0] = blockEntity[bits];
                 }
             }
 
@@ -608,7 +729,12 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                 if (nextNext[z][x] = !solid[bits]) {
                     if (traceCache[z][x] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                         bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                        blocks.put(new BlockPos(minX + x, realY, minZ + z), true);
+                        BlockPos block = new BlockPos(minX + x, realY, minZ + z);
+                        blocks.put(block, true);
+
+                        if (blockEntityCache[z][x]) {
+                            blockEntities.add(block);
+                        }
                     } else {
                         bitStorageWriter.skip();
                     }
@@ -621,22 +747,34 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                     if (current[z][x]) {
                         if (traceCache[z][x] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                             bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                            blocks.put(new BlockPos(minX + x, realY, minZ + z), true);
+                            BlockPos block = new BlockPos(minX + x, realY, minZ + z);
+                            blocks.put(block, true);
+
+                            if (blockEntityCache[z][x]) {
+                                blockEntities.add(block);
+                            }
                         } else {
                             bitStorageWriter.skip();
                         }
                     } else {
                         bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Not exposed to air
+
+                        if (blockEntityCache[z][x]) {
+                            blockEntities.add(new BlockPos(minX + x, realY, minZ + z));
+                        }
                     }
                 }
 
                 if (trace[bits]) {
                     traceCache[z][x] = true;
+                    blockEntityCache[z][x] = blockEntity[bits];
                 } else {
                     traceCache[z][x] = false;
 
                     if (!obfuscate[bits]) {
                         next[z][x] = true;
+                    } else {
+                        blockEntityCache[z][x] = blockEntity[bits];
                     }
                 }
             }
@@ -647,7 +785,12 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             if (nextNext[z][15] = !solid[bits]) {
                 if (traceCache[z][15] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                     bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                    blocks.put(new BlockPos(minX + 15, realY, minZ + z), true);
+                    BlockPos block = new BlockPos(minX + 15, realY, minZ + z);
+                    blocks.put(block, true);
+
+                    if (blockEntityCache[z][15]) {
+                        blockEntities.add(block);
+                    }
                 } else {
                     bitStorageWriter.skip();
                 }
@@ -659,22 +802,34 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                 if (current[z][15] || isTransparent(nearbyChunkSections[1], 0, y, z)) {
                     if (traceCache[z][15] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                         bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                        blocks.put(new BlockPos(minX + 15, realY, minZ + z), true);
+                        BlockPos block = new BlockPos(minX + 15, realY, minZ + z);
+                        blocks.put(block, true);
+
+                        if (blockEntityCache[z][15]) {
+                            blockEntities.add(block);
+                        }
                     } else {
                         bitStorageWriter.skip();
                     }
                 } else {
                     bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Not exposed to air
+
+                    if (blockEntityCache[z][15]) {
+                        blockEntities.add(new BlockPos(minX + 15, realY, minZ + z));
+                    }
                 }
             }
 
             if (trace[bits]) {
                 traceCache[z][15] = true;
+                blockEntityCache[z][15] = blockEntity[bits];
             } else {
                 traceCache[z][15] = false;
 
                 if (!obfuscate[bits]) {
                     next[z][15] = true;
+                } else {
+                    blockEntityCache[z][15] = blockEntity[bits];
                 }
             }
         }
@@ -685,7 +840,12 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         if (nextNext[15][0] = !solid[bits]) {
             if (traceCache[15][0] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                 bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                blocks.put(new BlockPos(minX + 0, realY, minZ + 15), true);
+                BlockPos block = new BlockPos(minX + 0, realY, minZ + 15);
+                blocks.put(block, true);
+
+                if (blockEntityCache[15][0]) {
+                    blockEntities.add(block);
+                }
             } else {
                 bitStorageWriter.skip();
             }
@@ -696,22 +856,34 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             if (current[15][0] || isTransparent(nearbyChunkSections[3], 0, y, 0) || isTransparent(nearbyChunkSections[0], 15, y, 15)) {
                 if (traceCache[15][0] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                     bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                    blocks.put(new BlockPos(minX + 0, realY, minZ + 15), true);
+                    BlockPos block = new BlockPos(minX + 0, realY, minZ + 15);
+                    blocks.put(block, true);
+
+                    if (blockEntityCache[15][0]) {
+                        blockEntities.add(block);
+                    }
                 } else {
                     bitStorageWriter.skip();
                 }
             } else {
                 bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Not exposed to air
+
+                if (blockEntityCache[15][0]) {
+                    blockEntities.add(new BlockPos(minX + 0, realY, minZ + 15));
+                }
             }
         }
 
         if (trace[bits]) {
             traceCache[15][0] = true;
+            blockEntityCache[15][0] = blockEntity[bits];
         } else {
             traceCache[15][0] = false;
 
             if (!obfuscate[bits]) {
                 next[15][0] = true;
+            } else {
+                blockEntityCache[15][0] = blockEntity[bits];
             }
         }
 
@@ -722,7 +894,12 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             if (nextNext[15][x] = !solid[bits]) {
                 if (traceCache[15][x] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                     bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                    blocks.put(new BlockPos(minX + x, realY, minZ + 15), true);
+                    BlockPos block = new BlockPos(minX + x, realY, minZ + 15);
+                    blocks.put(block, true);
+
+                    if (blockEntityCache[15][x]) {
+                        blockEntities.add(block);
+                    }
                 } else {
                     bitStorageWriter.skip();
                 }
@@ -734,22 +911,34 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                 if (current[15][x] || isTransparent(nearbyChunkSections[3], x, y, 0)) {
                     if (traceCache[15][x] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                         bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                        blocks.put(new BlockPos(minX + x, realY, minZ + 15), true);
+                        BlockPos block = new BlockPos(minX + x, realY, minZ + 15);
+                        blocks.put(block, true);
+
+                        if (blockEntityCache[15][x]) {
+                            blockEntities.add(block);
+                        }
                     } else {
                         bitStorageWriter.skip();
                     }
                 } else {
                     bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Not exposed to air
+
+                    if (blockEntityCache[15][x]) {
+                        blockEntities.add(new BlockPos(minX + x, realY, minZ + 15));
+                    }
                 }
             }
 
             if (trace[bits]) {
                 traceCache[15][x] = true;
+                blockEntityCache[15][x] = blockEntity[bits];
             } else {
                 traceCache[15][x] = false;
 
                 if (!obfuscate[bits]) {
                     next[15][x] = true;
+                } else {
+                    blockEntityCache[15][x] = blockEntity[bits];
                 }
             }
         }
@@ -760,7 +949,12 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         if (nextNext[15][15] = !solid[bits]) {
             if (traceCache[15][15] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                 bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                blocks.put(new BlockPos(minX + 15, realY, minZ + 15), true);
+                BlockPos block = new BlockPos(minX + 15, realY, minZ + 15);
+                blocks.put(block, true);
+
+                if (blockEntityCache[15][15]) {
+                    blockEntities.add(block);
+                }
             } else {
                 bitStorageWriter.skip();
             }
@@ -771,22 +965,34 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             if (current[15][15] || isTransparent(nearbyChunkSections[3], 15, y, 0) || isTransparent(nearbyChunkSections[1], 0, y, 15)) {
                 if (traceCache[15][15] && blocks.size() < maxRayTraceBlockCountPerChunk) {
                     bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Exposed to air
-                    blocks.put(new BlockPos(minX + 15, realY, minZ + 15), true);
+                    BlockPos block = new BlockPos(minX + 15, realY, minZ + 15);
+                    blocks.put(block, true);
+
+                    if (blockEntityCache[15][15]) {
+                        blockEntities.add(block);
+                    }
                 } else {
                     bitStorageWriter.skip();
                 }
             } else {
                 bitStorageWriter.write(presetBlockStateBits[random.getAsInt()]); // Not exposed to air
+
+                if (blockEntityCache[15][15]) {
+                    blockEntities.add(new BlockPos(minX + 15, realY, minZ + 15));
+                }
             }
         }
 
         if (trace[bits]) {
             traceCache[15][15] = true;
+            blockEntityCache[15][15] = blockEntity[bits];
         } else {
             traceCache[15][15] = false;
 
             if (!obfuscate[bits]) {
                 next[15][15] = true;
+            } else {
+                blockEntityCache[15][15] = blockEntity[bits];
             }
         }
     }
