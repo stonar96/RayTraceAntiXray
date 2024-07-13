@@ -161,7 +161,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             traceGlobal = new boolean[Block.BLOCK_STATE_REGISTRY.size()];
 
             for (String id : toTrace) {
-                Block block = BuiltInRegistries.BLOCK.getOptional(new ResourceLocation(id)).orElse(null);
+                Block block = BuiltInRegistries.BLOCK.getOptional(ResourceLocation.parse(id)).orElse(null);
 
                 // Don't obfuscate air because air causes unnecessary block updates and causes block updates to fail in the void
                 if (block != null && !block.defaultBlockState().isAir()) {

@@ -3,7 +3,7 @@
   <parent>
     <groupId>com.vanillage.raytraceantixray</groupId>
     <artifactId>raytraceantixray-parent</artifactId>
-    <version>1.14.0</version>
+    <version>1.15.0</version>
   </parent>
   <artifactId>raytraceantixray</artifactId>
   <name>RayTraceAntiXray</name>
@@ -42,12 +42,6 @@
     </dependency>
     <dependency>
       <groupId>io.papermc.paper</groupId>
-      <artifactId>paper-mojangapi</artifactId>
-      <version>${paperVersion}</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.papermc.paper</groupId>
       <artifactId>paper-server</artifactId>
       <version>${paperVersion}</version>
       <classifier>mojang-mapped</classifier>
@@ -56,7 +50,7 @@
     <dependency>
       <groupId>com.mojang</groupId>
       <artifactId>datafixerupper</artifactId>
-      <version>7.0.14</version>
+      <version>8.0.16</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
