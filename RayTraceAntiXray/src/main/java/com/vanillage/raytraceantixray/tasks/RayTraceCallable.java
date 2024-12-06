@@ -93,9 +93,9 @@ public final class RayTraceCallable implements Callable<Void> {
                     }
 
                     int sectionY = y >> 4;
-                    int minSection = chunk.getMinSection();
+                    int minSection = chunk.getMinSectionY();
 
-                    if (sectionY < minSection || sectionY >= chunk.getMaxSection()) {
+                    if (sectionY < minSection || sectionY >= chunk.getMaxSectionY()) {
                         return false;
                     }
 
@@ -110,9 +110,9 @@ public final class RayTraceCallable implements Callable<Void> {
                         return UNLOADED_OCCLUDING;
                     }
 
-                    int minSection = chunk.getMinSection();
+                    int minSection = chunk.getMinSectionY();
 
-                    if (sectionY < minSection || sectionY >= chunk.getMaxSection()) {
+                    if (sectionY < minSection || sectionY >= chunk.getMaxSectionY()) {
                         return false;
                     }
 
@@ -153,9 +153,9 @@ public final class RayTraceCallable implements Callable<Void> {
                         return UNLOADED_OCCLUDING;
                     }
 
-                    int minSection = chunk.getMinSection();
+                    int minSection = chunk.getMinSectionY();
 
-                    if (sectionY < minSection || sectionY >= chunk.getMaxSection()) {
+                    if (sectionY < minSection || sectionY >= chunk.getMaxSectionY()) {
                         section = null;
                         return false;
                     }
@@ -182,9 +182,9 @@ public final class RayTraceCallable implements Callable<Void> {
                         return UNLOADED_OCCLUDING;
                     }
 
-                    int minSection = chunk.getMinSection();
+                    int minSection = chunk.getMinSectionY();
 
-                    if (sectionY < minSection || sectionY >= chunk.getMaxSection()) {
+                    if (sectionY < minSection || sectionY >= chunk.getMaxSectionY()) {
                         section = null;
                         return false;
                     }
@@ -213,7 +213,7 @@ public final class RayTraceCallable implements Callable<Void> {
             @Override
             public void initializeCache(LevelChunk chunk, int chunkX, int sectionY, int chunkZ) {
                 this.chunk = chunk;
-                section = chunk.getSections()[sectionY - chunk.getMinSection()];
+                section = chunk.getSections()[sectionY - chunk.getMinSectionY()];
                 this.chunkX = chunkX;
                 this.sectionY = sectionY;
                 this.chunkZ = chunkZ;

@@ -3,7 +3,7 @@
   <parent>
     <groupId>com.vanillage.raytraceantixray</groupId>
     <artifactId>raytraceantixray-parent</artifactId>
-    <version>1.15.0</version>
+    <version>1.15.1</version>
   </parent>
   <artifactId>raytraceantixray</artifactId>
   <name>RayTraceAntiXray</name>
@@ -62,7 +62,7 @@
     <dependency>
       <groupId>com.comphenix.protocol</groupId>
       <artifactId>ProtocolLib</artifactId>
-      <version>5.1.0</version>
+      <version>5.3.0</version>
       <scope>provided</scope>
     </dependency>
   </dependencies>
@@ -110,7 +110,7 @@
           <dependency>
             <groupId>net.fabricmc</groupId>
             <artifactId>tiny-remapper</artifactId>
-            <version>0.9.0</version>
+            <version>0.10.4</version>
             <classifier>fat</classifier>
           </dependency>
         </dependencies>
