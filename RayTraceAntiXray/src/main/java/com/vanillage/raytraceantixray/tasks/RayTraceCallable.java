@@ -93,13 +93,13 @@ public final class RayTraceCallable implements Callable<Void> {
                     }
 
                     int sectionY = y >> 4;
-                    int minSection = chunk.getMinSectionY();
+                    int minSectionY = chunk.getMinSectionY();
 
-                    if (sectionY < minSection || sectionY >= chunk.getMaxSectionY()) {
+                    if (sectionY < minSectionY || sectionY >= chunk.getMaxSectionY()) {
                         return false;
                     }
 
-                    LevelChunkSection section = chunk.getSections()[sectionY - minSection];
+                    LevelChunkSection section = chunk.getSections()[sectionY - minSectionY];
                     return section != null && !section.hasOnlyAir() && solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(getBlockState(section, x, y, z))]; // Sections aren't null anymore. Unfortunately, LevelChunkSection#recalcBlockCounts() temporarily resets #nonEmptyBlockCount to 0 due to a Paper optimization.
                 }
 
@@ -110,13 +110,13 @@ public final class RayTraceCallable implements Callable<Void> {
                         return UNLOADED_OCCLUDING;
                     }
 
-                    int minSection = chunk.getMinSectionY();
+                    int minSectionY = chunk.getMinSectionY();
 
-                    if (sectionY < minSection || sectionY >= chunk.getMaxSectionY()) {
+                    if (sectionY < minSectionY || sectionY >= chunk.getMaxSectionY()) {
                         return false;
                     }
 
-                    LevelChunkSection section = chunk.getSections()[sectionY - minSection];
+                    LevelChunkSection section = chunk.getSections()[sectionY - minSectionY];
                     return section != null && !section.hasOnlyAir() && solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(getBlockState(section, x, y, z))]; // Sections aren't null anymore. Unfortunately, LevelChunkSection#recalcBlockCounts() temporarily resets #nonEmptyBlockCount to 0 due to a Paper optimization.
                 }
 
@@ -153,14 +153,14 @@ public final class RayTraceCallable implements Callable<Void> {
                         return UNLOADED_OCCLUDING;
                     }
 
-                    int minSection = chunk.getMinSectionY();
+                    int minSectionY = chunk.getMinSectionY();
 
-                    if (sectionY < minSection || sectionY >= chunk.getMaxSectionY()) {
+                    if (sectionY < minSectionY || sectionY >= chunk.getMaxSectionY()) {
                         section = null;
                         return false;
                     }
 
-                    section = chunk.getSections()[sectionY - minSection];
+                    section = chunk.getSections()[sectionY - minSectionY];
 
                     if (section == null) { // Sections aren't null anymore.
                         return false;
@@ -182,14 +182,14 @@ public final class RayTraceCallable implements Callable<Void> {
                         return UNLOADED_OCCLUDING;
                     }
 
-                    int minSection = chunk.getMinSectionY();
+                    int minSectionY = chunk.getMinSectionY();
 
-                    if (sectionY < minSection || sectionY >= chunk.getMaxSectionY()) {
+                    if (sectionY < minSectionY || sectionY >= chunk.getMaxSectionY()) {
                         section = null;
                         return false;
                     }
 
-                    section = chunk.getSections()[sectionY - minSection];
+                    section = chunk.getSections()[sectionY - minSectionY];
 
                     if (section == null) { // Sections aren't null anymore.
                         return false;
