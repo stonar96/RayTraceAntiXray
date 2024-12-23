@@ -175,7 +175,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             }
         }
 
-        EmptyLevelChunk emptyChunk = new EmptyLevelChunk(level, new ChunkPos(0, 0), MinecraftServer.getServer().registryAccess().registryOrThrow(Registries.BIOME).getHolderOrThrow(Biomes.PLAINS));
+        EmptyLevelChunk emptyChunk = new EmptyLevelChunk(level, new ChunkPos(0, 0), MinecraftServer.getServer().registryAccess().lookupOrThrow(Registries.BIOME).getOrThrow(Biomes.PLAINS));
         BlockPos zeroPos = new BlockPos(0, 0, 0);
 
         for (int i = 0; i < solidGlobal.length; i++) {
@@ -300,7 +300,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         LevelChunkSection[] nearbyChunkSections = new LevelChunkSection[4];
         LevelChunk chunk = chunkPacketInfoAntiXray.getChunk();
         Level level = chunk.getLevel();
-        int maxChunkSectionIndex = Math.min((maxBlockHeight >> 4) - chunk.getMinSection(), chunk.getSectionsCount()) - 1;
+        int maxChunkSectionIndex = Math.min((maxBlockHeight >> 4) - chunk.getMinSectionY(), chunk.getSectionsCount()) - 1;
         boolean[] solidTemp = null;
         boolean[] obfuscateTemp = null;
         boolean[] traceTemp = null;
@@ -367,7 +367,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                                 presetBlockStateBitsTemp = presetBlockStateBitsEndStoneGlobal;
                                 break;
                             default:
-                                presetBlockStateBitsTemp = chunkSectionIndex + chunk.getMinSection() < 0 ? presetBlockStateBitsDeepslateGlobal : presetBlockStateBitsStoneGlobal;
+                                presetBlockStateBitsTemp = chunkSectionIndex + chunk.getMinSectionY() < 0 ? presetBlockStateBitsDeepslateGlobal : presetBlockStateBitsStoneGlobal;
                         }
                     } else {
                         presetBlockStateBitsTemp = presetBlockStateBitsGlobal;
@@ -409,7 +409,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
 
                     // Abuse the obfuscateLayer method to read the blocks of the first layer of the current chunk section
                     bitStorageWriter.setBits(0);
-                    obfuscateLayer(chunk.getPos(), chunk.getMinSection(), chunkSectionIndex, -1, bitStorageReader, bitStorageWriter, solidTemp, obfuscateTemp, traceTemp, blockEntityTemp, presetBlockStateBitsTemp, current, next, nextNext, traceCache, blockEntityCache, emptyNearbyChunkSections, random, blocks, blockEntities);
+                    obfuscateLayer(chunk.getPos(), chunk.getMinSectionY(), chunkSectionIndex, -1, bitStorageReader, bitStorageWriter, solidTemp, obfuscateTemp, traceTemp, blockEntityTemp, presetBlockStateBitsTemp, current, next, nextNext, traceCache, blockEntityCache, emptyNearbyChunkSections, random, blocks, blockEntities);
                 }
 
                 bitStorageWriter.setBits(chunkPacketInfoAntiXray.getBits(chunkSectionIndex));
@@ -425,7 +425,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                     next = nextNext;
                     nextNext = temp;
                     random.nextLayer();
-                    obfuscateLayer(chunk.getPos(), chunk.getMinSection(), chunkSectionIndex, y, bitStorageReader, bitStorageWriter, solidTemp, obfuscateTemp, traceTemp, blockEntityTemp, presetBlockStateBitsTemp, current, next, nextNext, traceCache, blockEntityCache, nearbyChunkSections, random, blocks, blockEntities);
+                    obfuscateLayer(chunk.getPos(), chunk.getMinSectionY(), chunkSectionIndex, y, bitStorageReader, bitStorageWriter, solidTemp, obfuscateTemp, traceTemp, blockEntityTemp, presetBlockStateBitsTemp, current, next, nextNext, traceCache, blockEntityCache, nearbyChunkSections, random, blocks, blockEntities);
                 }
 
                 // Check if the chunk section above doesn't need obfuscation
@@ -450,7 +450,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                     bitStorageReader.setBits(0);
                     solid[0] = true;
                     random.nextLayer();
-                    obfuscateLayer(chunk.getPos(), chunk.getMinSection(), chunkSectionIndex, 15, bitStorageReader, bitStorageWriter, solid, obfuscateTemp, traceTemp, blockEntityTemp, presetBlockStateBitsTemp, current, next, nextNext, traceCache, blockEntityCache, nearbyChunkSections, random, blocks, blockEntities);
+                    obfuscateLayer(chunk.getPos(), chunk.getMinSectionY(), chunkSectionIndex, 15, bitStorageReader, bitStorageWriter, solid, obfuscateTemp, traceTemp, blockEntityTemp, presetBlockStateBitsTemp, current, next, nextNext, traceCache, blockEntityCache, nearbyChunkSections, random, blocks, blockEntities);
                 } else {
                     // If not, initialize the reader and other stuff for the chunk section above to obfuscate the upper layer of the current chunk section
                     bitStorageReader.setBits(chunkPacketInfoAntiXray.getBits(chunkSectionIndex + 1));
@@ -464,7 +464,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                     next = nextNext;
                     nextNext = temp;
                     random.nextLayer();
-                    obfuscateLayer(chunk.getPos(), chunk.getMinSection(), chunkSectionIndex, 15, bitStorageReader, bitStorageWriter, solidTemp, obfuscateTemp, traceTemp, blockEntityTemp, presetBlockStateBitsTemp, current, next, nextNext, traceCache, blockEntityCache, nearbyChunkSections, random, blocks, blockEntities);
+                    obfuscateLayer(chunk.getPos(), chunk.getMinSectionY(), chunkSectionIndex, 15, bitStorageReader, bitStorageWriter, solidTemp, obfuscateTemp, traceTemp, blockEntityTemp, presetBlockStateBitsTemp, current, next, nextNext, traceCache, blockEntityCache, nearbyChunkSections, random, blocks, blockEntities);
                 }
 
                 bitStorageWriter.flush();
@@ -500,10 +500,10 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         chunkPacketInfoAntiXray.getChunkPacket().setReady(true);
     }
 
-    private void obfuscateLayer(ChunkPos chunkPos, int minSection, int chunkSectionIndex, int y, BitStorageReader bitStorageReader, BitStorageWriter bitStorageWriter, boolean[] solid, boolean[] obfuscate, boolean[] trace, boolean[] blockEntity, int[] presetBlockStateBits, boolean[][] current, boolean[][] next, boolean[][] nextNext, boolean[][] traceCache, boolean[][] blockEntityCache, LevelChunkSection[] nearbyChunkSections, IntSupplier random, Map<? super BlockPos, ? super Boolean> blocks, Set<? super BlockPos> blockEntities) {
+    private void obfuscateLayer(ChunkPos chunkPos, int minSectionY, int chunkSectionIndex, int y, BitStorageReader bitStorageReader, BitStorageWriter bitStorageWriter, boolean[] solid, boolean[] obfuscate, boolean[] trace, boolean[] blockEntity, int[] presetBlockStateBits, boolean[][] current, boolean[][] next, boolean[][] nextNext, boolean[][] traceCache, boolean[][] blockEntityCache, LevelChunkSection[] nearbyChunkSections, IntSupplier random, Map<? super BlockPos, ? super Boolean> blocks, Set<? super BlockPos> blockEntities) {
         int minX = chunkPos.getMinBlockX();
         int minZ = chunkPos.getMinBlockZ();
-        int realY = (chunkSectionIndex + minSection << 4) + y;
+        int realY = (chunkSectionIndex + minSectionY << 4) + y;
         // First block of first line
         int bits = bitStorageReader.read();
 
