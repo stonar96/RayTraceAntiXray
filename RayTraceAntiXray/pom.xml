@@ -73,47 +73,12 @@
         <artifactId>maven-jar-plugin</artifactId>
         <version>3.4.2</version>
         <configuration>
-          <classifier>mojang-mapped</classifier>
+          <archive>
+            <manifestEntries>
+              <paperweight-mappings-namespace>mojang+yarn</paperweight-mappings-namespace>
+            </manifestEntries>
+          </archive>
         </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>exec-maven-plugin</artifactId>
-        <version>3.5.0</version>
-        <executions>
-          <execution>
-            <id>java</id>
-            <phase>package</phase>
-            <goals>
-              <goal>java</goal>
-            </goals>
-            <configuration>
-              <includeProjectDependencies>false</includeProjectDependencies>
-              <includePluginDependencies>true</includePluginDependencies>
-              <executableDependency>
-                <groupId>net.fabricmc</groupId>
-                <artifactId>tiny-remapper</artifactId>
-              </executableDependency>
-              <mainClass>net.fabricmc.tinyremapper.Main</mainClass>
-              <arguments>
-                <argument>${project.build.directory}/${project.build.finalName}-mojang-mapped.jar</argument>
-                <argument>${project.build.directory}/${project.build.finalName}.jar</argument>
-                <argument>${basedir}/../Libs/target/data/mojang+yarn-spigot-reobf.tiny</argument>
-                <argument>mojang+yarn</argument>
-                <argument>spigot</argument>
-                <argument>${basedir}/../Libs/versions/${minecraftVersion}/paper-${minecraftVersion}.jar</argument>
-              </arguments>
-            </configuration>
-          </execution>
-        </executions>
-        <dependencies>
-          <dependency>
-            <groupId>net.fabricmc</groupId>
-            <artifactId>tiny-remapper</artifactId>
-            <version>0.10.4</version>
-            <classifier>fat</classifier>
-          </dependency>
-        </dependencies>
       </plugin>
     </plugins>
   </build>
