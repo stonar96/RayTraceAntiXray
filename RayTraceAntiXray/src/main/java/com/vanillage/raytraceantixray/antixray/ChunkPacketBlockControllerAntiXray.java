@@ -1,12 +1,12 @@
 package com.vanillage.raytraceantixray.antixray;
 
-import com.destroystokyo.paper.antixray.BitStorageReader;
-import com.destroystokyo.paper.antixray.BitStorageWriter;
-import com.destroystokyo.paper.antixray.ChunkPacketBlockController;
-import com.destroystokyo.paper.antixray.ChunkPacketInfo;
 import com.vanillage.raytraceantixray.RayTraceAntiXray;
 import com.vanillage.raytraceantixray.data.ChunkBlocks;
 
+import io.papermc.paper.antixray.BitStorageReader;
+import io.papermc.paper.antixray.BitStorageWriter;
+import io.papermc.paper.antixray.ChunkPacketBlockController;
+import io.papermc.paper.antixray.ChunkPacketInfo;
 import io.papermc.paper.configuration.WorldConfiguration;
 import io.papermc.paper.configuration.type.EngineMode;
 import java.lang.reflect.Field;

@@ -1,7 +1,6 @@
 package com.vanillage.raytraceantixray.antixray;
 
-import com.destroystokyo.paper.antixray.ChunkPacketInfo;
-
+import io.papermc.paper.antixray.ChunkPacketInfo;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;

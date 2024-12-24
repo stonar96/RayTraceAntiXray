@@ -11,7 +11,6 @@ import java.util.logging.Level;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.util.Vector;
 
-import com.destroystokyo.paper.antixray.ChunkPacketBlockController;
 import com.vanillage.raytraceantixray.RayTraceAntiXray;
 import com.vanillage.raytraceantixray.antixray.ChunkPacketBlockControllerAntiXray;
 import com.vanillage.raytraceantixray.data.ChunkBlocks;
@@ -24,6 +23,7 @@ import com.vanillage.raytraceantixray.util.BlockIterator;
 import com.vanillage.raytraceantixray.util.BlockOcclusionCulling;
 import com.vanillage.raytraceantixray.util.BlockOcclusionCulling.BlockOcclusionGetter;
 
+import io.papermc.paper.antixray.ChunkPacketBlockController;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
