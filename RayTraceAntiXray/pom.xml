@@ -3,7 +3,7 @@
   <parent>
     <groupId>com.vanillage.raytraceantixray</groupId>
     <artifactId>raytraceantixray-parent</artifactId>
-    <version>1.15.2</version>
+    <version>1.16.0</version>
   </parent>
   <artifactId>raytraceantixray</artifactId>
   <name>RayTraceAntiXray</name>
@@ -70,11 +70,62 @@
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <version>3.4.2</version>
-        <configuration>
-          <classifier>mojang-mapped</classifier>
-        </configuration>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.6.0</version>
+        <executions>
+          <execution>
+            <!-- Note that reflections with Mojang and Spigot mapped names will work on Mojang mapped Paper (shipped as of 1.20.5) when using this artifact. -->
+            <!-- This is because Paper remaps this artifact (according to the manifest entry) when it's loaded for the first time INCLUDING PROXIES FOR REFLECTIONS. -->
+            <!-- Remapping won't affect reflections that already use Mojang mapped names. -->
+            <!-- On (Spigot mapped) Spigot only reflections with Spigot mapped names will work. -->
+            <!-- However, the main artifact (see below) strictly requires reflections with Mojang mapped names. -->
+            <!-- Therefore, if Spigot should be supported, reflection names must be determined dynamically at runtime by detecting the environment. -->
+            <!-- See https://github.com/jpenilla/reflection-remapper for example. -->
+            <id>shade-spigot-mapped</id>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <manifestEntries>
+                    <paperweight-mappings-namespace>spigot</paperweight-mappings-namespace>
+                  </manifestEntries>
+                </transformer>
+              </transformers>
+              <shadedClassifierName>spigot-mapped</shadedClassifierName>
+              <shadedArtifactAttached>true</shadedArtifactAttached>
+            </configuration>
+          </execution>
+          <execution>
+            <!-- Note that this artifact requires reflections with Mojang mapped names to work on Mojang mapped Paper (shipped as of 1.20.5). -->
+            <!-- This is because Paper doesn't remap this artifact (according to the manifest entry). -->
+            <id>shade</id>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <manifestEntries>
+                    <paperweight-mappings-namespace>mojang</paperweight-mappings-namespace>
+                  </manifestEntries>
+                </transformer>
+              </transformers>
+              <outputFile>${project.build.directory}/${project.build.finalName}.jar</outputFile>
+            </configuration>
+          </execution>
+        </executions>
+        <!-- <configuration>
+          <relocations>
+            <relocation>
+              <pattern>com.example.dependency</pattern>
+              <shadedPattern>com.vanillage.raytraceantixray.dependencies.com.example.dependency</shadedPattern>
+            </relocation>
+          </relocations>
+        </configuration> -->
       </plugin>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
@@ -96,8 +147,8 @@
               </executableDependency>
               <mainClass>net.fabricmc.tinyremapper.Main</mainClass>
               <arguments>
-                <argument>${project.build.directory}/${project.build.finalName}-mojang-mapped.jar</argument>
-                <argument>${project.build.directory}/${project.build.finalName}.jar</argument>
+                <argument>${project.build.directory}/${project.build.finalName}-spigot-mapped.jar</argument>
+                <argument>${project.build.directory}/${project.build.finalName}-spigot-mapped.jar</argument>
                 <argument>${basedir}/../Libs/target/data/mojang+yarn-spigot-reobf.tiny</argument>
                 <argument>mojang+yarn</argument>
                 <argument>spigot</argument>
