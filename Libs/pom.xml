@@ -60,7 +60,7 @@
               <arguments>
                 <argument>-Dpaperclip.patchonly=true</argument>
                 <argument>-jar</argument>
-                <argument>${project.build.directory}/data/paperclip-mojang+yarn.jar</argument>
+                <argument>${project.build.directory}/data/paperclip-mojang.jar</argument>
               </arguments>
             </configuration>
           </execution>

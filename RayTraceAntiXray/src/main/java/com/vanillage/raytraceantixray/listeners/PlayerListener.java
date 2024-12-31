@@ -26,6 +26,11 @@ public final class PlayerListener implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
+
+        if (!plugin.validatePlayer(player)) {
+            return;
+        }
+
         PlayerData playerData = new PlayerData(RayTraceAntiXray.getLocations(player, new VectorialLocation(player.getEyeLocation())));
         playerData.setCallable(new RayTraceCallable(plugin, playerData));
         plugin.getPlayerData().put(player.getUniqueId(), playerData);
@@ -44,6 +49,11 @@ public final class PlayerListener implements Listener {
     public void onPlayerMove(PlayerMoveEvent event) {
         Player player = event.getPlayer();
         PlayerData playerData = plugin.getPlayerData().get(player.getUniqueId());
+
+        if (!plugin.validatePlayerData(player, playerData, "onPlayerMove")) {
+            return;
+        }
+
         Location to = event.getTo();
 
         if (to.getWorld().equals(playerData.getLocations()[0].getWorld())) {

@@ -8,12 +8,14 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
 import org.bukkit.World;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.entity.CraftEntity;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
@@ -101,6 +103,17 @@ public final class RayTraceAntiXray extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        // The server catches all throwables and may continue to run after disabling this plugin.
+        // We want to ensure as much as possible that everything is left behind in a clean and defined state.
+        // So the goal is to at least attempt to execute all critical sections of code, regardless of what happens before.
+        // Considering errors during error handling and JLS 11.1.3. Asynchronous Exceptions, throwables could potentially be thrown anywhere (even between blocks of code or statements?).
+        // Thus the only way is to nest try-finally statements like this: try { try { } finally { } } finally { }
+        // According to the bytecode of nested try-catch statements in JVMS 3.12, all nested try blocks are entered at the same time.
+        // So we either reach the innermost try block, in which case all blocks will be at least attempt to be executed, or no block is entered at all (e.g. in case of a throwable being thrown before).
+        // Both outcomes yield a defined state of this plugin.
+        // A more intuitive way would be to nest inside of the finally clause like this: try { } finally { try { } finally { } }
+        // However, this doesn't provide the same guarantees as described above.
+        // Additionally, we can add catch clauses to collect suppressed exceptions and rethrow in the last finally clause.
         Throwable throwable = null;
 
         try {
@@ -245,6 +258,29 @@ public final class RayTraceAntiXray extends JavaPlugin {
         }
 
         return false;
+    }
+
+    public boolean validatePlayer(Player player) {
+        return !player.hasMetadata("NPC");
+    }
+
+    public boolean validatePlayerData(Player player, PlayerData playerData, String methodName) {
+        if (playerData == null) {
+            if (validatePlayer(player)) {
+                // TODO: More logic and logging will be added here once we support reloading.
+                Logger logger = getLogger();
+                logger.warning("Missing player data detected for player " + player.getName() + " in method " + methodName);
+                logger.warning("Please note that reloading this plugin isn't yet supported");
+                logger.warning("Also make sure you are using the correct plugin version for your Minecraft version");
+                logger.warning("Please restart your server");
+                // Let the caller fail hard to print a stack trace.
+                return true;
+            }
+
+            return false;
+        }
+
+        return true;
     }
 
     public static VectorialLocation[] getLocations(Entity entity, VectorialLocation location) {

@@ -65,12 +65,17 @@ public final class PacketListener extends PacketAdapter {
                 Location location = player.getEyeLocation();
                 ConcurrentMap<UUID, PlayerData> playerDataMap = plugin.getPlayerData();
                 UUID uniqueId = player.getUniqueId();
+                PlayerData playerData = playerDataMap.get(uniqueId);
 
-                if (!location.getWorld().equals(playerDataMap.get(uniqueId).getLocations()[0].getWorld())) {
+                if (!plugin.validatePlayerData(player, playerData, "onPacketSending")) {
+                    return;
+                }
+
+                if (!location.getWorld().equals(playerData.getLocations()[0].getWorld())) {
                     // Detected a world change.
                     // In the event order listing above, this corresponds to (4) when RayTraceAntiXray is disabled in world B.
                     // The player's current world is world B since (2).
-                    PlayerData playerData = new PlayerData(RayTraceAntiXray.getLocations(player, new VectorialLocation(location)));
+                    playerData = new PlayerData(RayTraceAntiXray.getLocations(player, new VectorialLocation(location)));
                     playerData.setCallable(new RayTraceCallable(plugin, playerData));
                     playerDataMap.put(uniqueId, playerData);
                 }
@@ -93,6 +98,10 @@ public final class PacketListener extends PacketAdapter {
             Player player = event.getPlayer();
             UUID uniqueId = player.getUniqueId();
             PlayerData playerData = playerDataMap.get(uniqueId);
+
+            if (!plugin.validatePlayerData(player, playerData, "onPacketSending")) {
+                return;
+            }
 
             if (!world.equals(playerData.getLocations()[0].getWorld())) {
                 // Detected a world change.
@@ -127,15 +136,29 @@ public final class PacketListener extends PacketAdapter {
             // Note that chunk unload packets aren't sent on world change and on respawn.
             // World changes are already handled above.
             // Technically removing chunks isn't necessary since we're using a weak reference to the chunk.
+            Player player = event.getPlayer();
+            PlayerData playerData = plugin.getPlayerData().get(player.getUniqueId());
+
+            if (!plugin.validatePlayerData(player, playerData, "onPacketSending")) {
+                return;
+            }
+
             ChunkCoordIntPair chunkCoordIntPair = event.getPacket().getChunkCoordIntPairs().read(0);
-            plugin.getPlayerData().get(event.getPlayer().getUniqueId()).getChunks().remove(new LongWrapper(ChunkPos.asLong(chunkCoordIntPair.getChunkX(), chunkCoordIntPair.getChunkZ())));
+            playerData.getChunks().remove(new LongWrapper(ChunkPos.asLong(chunkCoordIntPair.getChunkX(), chunkCoordIntPair.getChunkZ())));
         } else if (packetType == PacketType.Play.Server.RESPAWN) {
             // As with world changes, chunk unload packets aren't sent on respawn.
             // All required chunks are (re)sent afterwards.
             // Thus we clear the chunks.
             // Technically this isn't necessary since we're using a weak reference to the chunk.
             // If respawning involves a world change, it will be handled in the next chunk packet event.
-            plugin.getPlayerData().get(event.getPlayer().getUniqueId()).getChunks().clear();
+            Player player = event.getPlayer();
+            PlayerData playerData = plugin.getPlayerData().get(player.getUniqueId());
+
+            if (!plugin.validatePlayerData(player, playerData, "onPacketSending")) {
+                return;
+            }
+
+            playerData.getChunks().clear();
         }
     }
 }

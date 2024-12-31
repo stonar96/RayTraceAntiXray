@@ -3,7 +3,7 @@
   <parent>
     <groupId>com.vanillage.raytraceantixray</groupId>
     <artifactId>raytraceantixray-parent</artifactId>
-    <version>1.16.0</version>
+    <version>1.16.1</version>
   </parent>
   <artifactId>raytraceantixray</artifactId>
   <name>RayTraceAntiXray</name>
@@ -149,8 +149,8 @@
               <arguments>
                 <argument>${project.build.directory}/${project.build.finalName}-spigot-mapped.jar</argument>
                 <argument>${project.build.directory}/${project.build.finalName}-spigot-mapped.jar</argument>
-                <argument>${basedir}/../Libs/target/data/mojang+yarn-spigot-reobf.tiny</argument>
-                <argument>mojang+yarn</argument>
+                <argument>${basedir}/../Libs/target/data/mojang-spigot-reobf.tiny</argument>
+                <argument>mojang</argument>
                 <argument>spigot</argument>
                 <argument>${basedir}/../Libs/versions/${minecraftVersion}/paper-${minecraftVersion}.jar</argument>
               </arguments>
