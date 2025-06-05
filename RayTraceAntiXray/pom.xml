@@ -3,7 +3,7 @@
   <parent>
     <groupId>com.vanillage.raytraceantixray</groupId>
     <artifactId>raytraceantixray-parent</artifactId>
-    <version>1.16.1</version>
+    <version>1.16.2</version>
   </parent>
   <artifactId>raytraceantixray</artifactId>
   <name>RayTraceAntiXray</name>
@@ -56,7 +56,7 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-transport</artifactId>
-      <version>4.1.115.Final</version>
+      <version>4.1.118.Final</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -161,7 +161,7 @@
           <dependency>
             <groupId>net.fabricmc</groupId>
             <artifactId>tiny-remapper</artifactId>
-            <version>0.10.4</version>
+            <version>0.11.1</version>
             <classifier>fat</classifier>
           </dependency>
         </dependencies>

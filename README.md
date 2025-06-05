@@ -5,7 +5,7 @@ Paper Anti-Xray can't hide ores that are exposed to air in caves for example (se
 
 ![RayTraceAntiXray](https://user-images.githubusercontent.com/18699205/185815590-4b2efce6-5a26-4579-b079-e9958a454fd0.gif)
 ## How to install
-* Download and install [Paper](https://papermc.io/downloads/paper) 1.21.4. Folia is supported since Minecraft 1.20.1.
+* Download and install [Paper](https://papermc.io/downloads/paper) 1.21.5. Folia is supported since Minecraft 1.20.1.
 * Enable [Paper Anti-Xray](https://docs.papermc.io/paper/anti-xray) using `engine-mode: 1`.
 * Download and install [ProtocolLib](https://www.spigotmc.org/resources/protocollib.1997/).
 * Download and install [RayTraceAntiXray](https://builtbybit.com/resources/raytraceantixray.24914/). (For older Minecraft versions, browse the update history.)
