@@ -62,22 +62,19 @@ public final class PacketListener extends PacketAdapter {
                 // We can't determine the world from the chunk packet in this case.
                 // Thus we use the player's current (more up to date) world instead.
                 Player player = event.getPlayer();
-                Location location = player.getEyeLocation();
-                ConcurrentMap<UUID, PlayerData> playerDataMap = rayTraceAntiXray.getPlayerData();
-                UUID uniqueId = player.getUniqueId();
-                PlayerData playerData = playerDataMap.get(uniqueId);
+                PlayerData playerData = rayTraceAntiXray.getPlayerData().get(player.getUniqueId());
 
                 if (!rayTraceAntiXray.validatePlayerData(player, playerData, "onPacketSending")) {
                     return;
                 }
 
-                if (!location.getWorld().equals(playerData.getLocations()[0].getWorld())) {
+                Location location = player.getEyeLocation();
+
+                if (location.getWorld() != playerData.getLocations()[0].getWorld()) {
                     // Detected a world change.
                     // In the event order listing above, this corresponds to (4) when RayTraceAntiXray is disabled in world B.
                     // The player's current world is world B since (2).
-                    playerData = new PlayerData(RayTraceAntiXray.getLocations(player, new VectorialLocation(location)));
-                    playerData.setCallable(new RayTraceCallable(rayTraceAntiXray, playerData));
-                    playerDataMap.put(uniqueId, playerData);
+                    rayTraceAntiXray.renewPlayer(player, playerData, location);
                 }
 
                 return;
@@ -93,22 +90,21 @@ public final class PacketListener extends PacketAdapter {
                 return;
             }
 
-            CraftWorld world = chunk.getLevel().getWorld();
-            ConcurrentMap<UUID, PlayerData> playerDataMap = rayTraceAntiXray.getPlayerData();
             Player player = event.getPlayer();
-            UUID uniqueId = player.getUniqueId();
-            PlayerData playerData = playerDataMap.get(uniqueId);
+            PlayerData playerData = rayTraceAntiXray.getPlayerData().get(player.getUniqueId());
 
             if (!rayTraceAntiXray.validatePlayerData(player, playerData, "onPacketSending")) {
                 return;
             }
 
-            if (!world.equals(playerData.getLocations()[0].getWorld())) {
+            CraftWorld world = chunk.getLevel().getWorld();
+
+            if (world != playerData.getLocations()[0].getWorld()) {
                 // Detected a world change.
                 // We need the player's current location to construct a new player data instance.
                 Location location = player.getEyeLocation();
 
-                if (!world.equals(location.getWorld())) {
+                if (world != location.getWorld()) {
                     // The player has changed the world again since this chunk packet was sent.
                     // (As described above, packets can be delayed.)
                     // Example event order for this case:
@@ -124,9 +120,11 @@ public final class PacketListener extends PacketAdapter {
                 }
 
                 // Renew the player data instance.
-                playerData = new PlayerData(RayTraceAntiXray.getLocations(player, new VectorialLocation(location)));
-                playerData.setCallable(new RayTraceCallable(rayTraceAntiXray, playerData));
-                playerDataMap.put(uniqueId, playerData);
+                playerData = rayTraceAntiXray.renewPlayer(player, playerData, location);
+
+                if (!rayTraceAntiXray.validatePlayerData(player, playerData, "onPacketSending")) {
+                    return;
+                }
             }
 
             // We need to copy the chunk blocks because the same chunk packet could have been sent to multiple players.

@@ -25,24 +25,12 @@ public final class PlayerListener implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        Player player = event.getPlayer();
-
-        if (!rayTraceAntiXray.validatePlayer(player)) {
-            return;
-        }
-
-        PlayerData playerData = new PlayerData(RayTraceAntiXray.getLocations(player, new VectorialLocation(player.getEyeLocation())));
-        playerData.setCallable(new RayTraceCallable(rayTraceAntiXray, playerData));
-        rayTraceAntiXray.getPlayerData().put(player.getUniqueId(), playerData);
-
-        if (rayTraceAntiXray.isFolia()) {
-            player.getScheduler().runAtFixedRate(rayTraceAntiXray.getPlugin(), new UpdateBukkitRunnable(rayTraceAntiXray, player), null, 1L, rayTraceAntiXray.getUpdateTicks());
-        }
+        rayTraceAntiXray.addPlayer(event.getPlayer(), true);
     }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        rayTraceAntiXray.getPlayerData().remove(event.getPlayer().getUniqueId());
+        rayTraceAntiXray.removePlayer(event.getPlayer().getUniqueId(), true);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -56,7 +44,7 @@ public final class PlayerListener implements Listener {
 
         Location to = event.getTo();
 
-        if (to.getWorld().equals(playerData.getLocations()[0].getWorld())) {
+        if (to.getWorld() == playerData.getLocations()[0].getWorld()) {
             VectorialLocation location = new VectorialLocation(to);
             Vector vector = location.getVector();
             vector.setY(vector.getY() + player.getEyeHeight());
