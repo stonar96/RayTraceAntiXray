@@ -6,14 +6,18 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
+
 public final class PlayerData implements Callable<Object> {
     private volatile VectorialLocation[] locations;
+    private ScheduledTask scheduledTask;
     private final ConcurrentMap<LongWrapper, ChunkBlocks> chunks = new ConcurrentHashMap<>();
     private final Queue<Result> results = new ConcurrentLinkedQueue<>();
     private Callable<?> callable;
 
-    public PlayerData(VectorialLocation[] locations) {
+    public PlayerData(VectorialLocation[] locations, ScheduledTask scheduledTask) {
         this.locations = locations;
+        this.scheduledTask = scheduledTask;
     }
 
     public VectorialLocation[] getLocations() {
@@ -22,6 +26,14 @@ public final class PlayerData implements Callable<Object> {
 
     public void setLocations(VectorialLocation[] locations) {
         this.locations = locations;
+    }
+
+    public ScheduledTask getScheduledTask() {
+        return scheduledTask;
+    }
+
+    public void setScheduledTask(ScheduledTask scheduledTask) {
+        this.scheduledTask = scheduledTask;
     }
 
     public ConcurrentMap<LongWrapper, ChunkBlocks> getChunks() {

@@ -10,6 +10,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
+import org.bukkit.Location;
 import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.configuration.Configuration;
@@ -33,12 +34,14 @@ import com.vanillage.raytraceantixray.data.VectorialLocation;
 import com.vanillage.raytraceantixray.listeners.PacketListener;
 import com.vanillage.raytraceantixray.listeners.PlayerListener;
 import com.vanillage.raytraceantixray.listeners.WorldListener;
+import com.vanillage.raytraceantixray.tasks.RayTraceCallable;
 import com.vanillage.raytraceantixray.tasks.RayTraceTimerTask;
 import com.vanillage.raytraceantixray.tasks.UpdateBukkitRunnable;
 
 import io.papermc.paper.antixray.ChunkPacketBlockController;
 import io.papermc.paper.configuration.WorldConfiguration.Anticheat.AntiXray;
 import io.papermc.paper.configuration.type.EngineMode;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ClipContext;
@@ -132,9 +135,7 @@ public final class RayTraceAntiXray {
                         } finally {
                             ProtocolLibrary.getProtocolManager().removePacketListeners(plugin);
                             HandlerList.unregisterAll(plugin);
-                            Server server = plugin.getServer();
-                            server.getScheduler().cancelTasks(plugin);
-                            server.getAsyncScheduler().cancelTasks(plugin);
+                            plugin.getServer().getScheduler().cancelTasks(plugin);
                         }
                     } catch (Throwable t) {
                         if (throwable == null) {
@@ -144,6 +145,7 @@ public final class RayTraceAntiXray {
                         }
                     } finally {
                         timer.cancel();
+                        timer = null;
                     }
                 } catch (Throwable t) {
                     if (throwable == null) {
@@ -160,6 +162,8 @@ public final class RayTraceAntiXray {
                         Thread.currentThread().interrupt();
                         throw new RuntimeException(e);
                     }
+
+                    executorService = null;
                 }
             } catch (Throwable t) {
                 if (throwable == null) {
@@ -170,6 +174,7 @@ public final class RayTraceAntiXray {
             } finally {
                 packetChunkBlocksTransfer.clear();
                 playerData.clear();
+                timingsEnabled = false;
             }
         } catch (Throwable t) {
             if (throwable == null) {
@@ -191,14 +196,6 @@ public final class RayTraceAntiXray {
 
     public Configuration getConfig() {
         return config;
-    }
-
-    public long getUpdateTicks() {
-        return updateTicks;
-    }
-
-    public boolean isFolia() {
-        return folia;
     }
 
     public ConcurrentMap<ClientboundLevelChunkWithLightPacket, ChunkBlocks> getPacketChunkBlocksTransfer() {
@@ -260,6 +257,71 @@ public final class RayTraceAntiXray {
         } catch (NoSuchFieldException | IllegalAccessException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public PlayerData addPlayer(Player player, boolean join) {
+        if (!validatePlayer(player)) {
+            return null;
+        }
+
+        VectorialLocation vectorialLocation = new VectorialLocation(player.getEyeLocation());
+        PlayerData playerData = new PlayerData(!join && folia ? new VectorialLocation[] { vectorialLocation } : getLocations(player, vectorialLocation), null);
+        playerData.setCallable(new RayTraceCallable(this, playerData));
+        UUID uniqueId = player.getUniqueId();
+        PlayerData previousPlayerData = this.playerData.putIfAbsent(uniqueId, playerData);
+
+        if (previousPlayerData != null) {
+            return previousPlayerData;
+        }
+
+        if (folia) {
+            ScheduledTask scheduledTask = player.getScheduler().runAtFixedRate(plugin, new UpdateBukkitRunnable(this, player), () -> removePlayer(uniqueId, true), 1L, updateTicks);
+
+            if (scheduledTask == null) {
+                removePlayer(uniqueId, true);
+                return null;
+            }
+
+            playerData.setScheduledTask(scheduledTask);
+        }
+
+        if (running) {
+            return playerData;
+        }
+
+        removePlayer(uniqueId, false);
+        return null;
+    }
+
+    public PlayerData renewPlayer(Player player, PlayerData playerData, Location location) {
+        playerData = new PlayerData(getLocations(player, new VectorialLocation(location)), playerData.getScheduledTask());
+        playerData.setCallable(new RayTraceCallable(this, playerData));
+        UUID uniqueId = player.getUniqueId();
+
+        if (this.playerData.replace(uniqueId, playerData) == null) {
+            return null;
+        }
+
+        if (running) {
+            return playerData;
+        }
+
+        removePlayer(uniqueId, true);
+        return null;
+    }
+
+    public PlayerData removePlayer(UUID uniqueId, boolean quit) {
+        PlayerData playerData = this.playerData.remove(uniqueId);
+
+        if (!quit && playerData != null) {
+            ScheduledTask scheduledTask = playerData.getScheduledTask();
+
+            if (scheduledTask != null) {
+                scheduledTask.cancel();
+            }
+        }
+
+        return playerData;
     }
 
     public boolean validatePlayer(Player player) {

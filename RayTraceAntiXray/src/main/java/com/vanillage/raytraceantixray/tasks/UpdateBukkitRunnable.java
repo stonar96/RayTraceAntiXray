@@ -28,6 +28,7 @@ import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
 
 public final class UpdateBukkitRunnable extends BukkitRunnable implements Consumer<ScheduledTask> {
     private final RayTraceAntiXray rayTraceAntiXray;
@@ -65,7 +66,7 @@ public final class UpdateBukkitRunnable extends BukkitRunnable implements Consum
 
         World world = playerData.getLocations()[0].getWorld();
 
-        if (!player.getWorld().equals(world)) {
+        if (player.getWorld() != world) {
             return;
         }
 
@@ -77,23 +78,26 @@ public final class UpdateBukkitRunnable extends BukkitRunnable implements Consum
 
         while ((result = results.poll()) != null) {
             ChunkBlocks chunkBlocks = result.getChunkBlocks();
+            LevelChunk chunk = chunkBlocks.getChunk();
 
             // Check if the client still has the chunk loaded and if it wasn't resent in the meantime.
             // Note that even if this check passes, the server could have already unloaded or resent the chunk but the corresponding packet is still in the packet queue.
             // Technically the null check isn't necessary but we don't need to send an update packet because the client will unload the chunk.
-            if (chunkBlocks.getChunk() == null || chunks.get(chunkBlocks.getKey()) != chunkBlocks) {
+            if (chunk == null || chunks.get(chunkBlocks.getKey()) != chunkBlocks) {
                 continue;
             }
 
-            BlockPos block = result.getBlock();
+            int chunkX = chunk.locX;
+            int chunkZ = chunk.locZ;
 
             // Similar to the null check above, this check isn't actually necessary.
             // However, we don't need to send an update packet because the client will unload the chunk.
             // Thus we can avoid loading the chunk just for the update packet.
-            if (!world.isChunkLoaded(block.getX() >> 4, block.getZ() >> 4)) {
+            if (rayTraceAntiXray.getPlugin().getServer().isOwnedByCurrentRegion(world, chunkX, chunkZ) || !world.isChunkLoaded(chunkX, chunkZ)) {
                 continue;
             }
 
+            BlockPos block = result.getBlock();
             BlockState blockState;
             BlockEntity blockEntity = null;
 
