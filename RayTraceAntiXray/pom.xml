@@ -22,10 +22,6 @@
       <id>minecraft-libraries</id>
       <url>https://libraries.minecraft.net/</url>
     </repository>
-    <repository>
-      <id>dmulloy2-repo</id>
-      <url>https://repo.dmulloy2.net/repository/public/</url>
-    </repository>
   </repositories>
   <pluginRepositories>
     <pluginRepository>
@@ -60,9 +56,9 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>com.comphenix.protocol</groupId>
+      <groupId>net.dmulloy2</groupId>
       <artifactId>ProtocolLib</artifactId>
-      <version>5.3.0</version>
+      <version>5.4.0</version>
       <scope>provided</scope>
     </dependency>
   </dependencies>
@@ -71,7 +67,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
-        <version>3.6.0</version>
+        <version>3.6.1</version>
         <executions>
           <execution>
             <!-- Note that reflections with Mojang and Spigot mapped names will work on Mojang mapped Paper (shipped as of 1.20.5) when using this artifact. -->
@@ -130,7 +126,7 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
-        <version>3.5.0</version>
+        <version>3.6.2</version>
         <executions>
           <execution>
             <id>java</id>
@@ -161,7 +157,7 @@
           <dependency>
             <groupId>net.fabricmc</groupId>
             <artifactId>tiny-remapper</artifactId>
-            <version>0.11.1</version>
+            <version>0.12.0</version>
             <classifier>fat</classifier>
           </dependency>
         </dependencies>
