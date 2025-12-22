@@ -3,7 +3,7 @@
   <parent>
     <groupId>com.vanillage.raytraceantixray</groupId>
     <artifactId>raytraceantixray-parent</artifactId>
-    <version>1.16.2</version>
+    <version>1.16.3</version>
   </parent>
   <artifactId>raytraceantixray</artifactId>
   <name>RayTraceAntiXray</name>
@@ -46,13 +46,13 @@
     <dependency>
       <groupId>com.mojang</groupId>
       <artifactId>datafixerupper</artifactId>
-      <version>8.0.16</version>
+      <version>9.0.19</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-transport</artifactId>
-      <version>4.1.118.Final</version>
+      <version>4.2.7.Final</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -126,7 +126,7 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
-        <version>3.6.2</version>
+        <version>3.6.3</version>
         <executions>
           <execution>
             <id>java</id>
@@ -157,7 +157,7 @@
           <dependency>
             <groupId>net.fabricmc</groupId>
             <artifactId>tiny-remapper</artifactId>
-            <version>0.12.0</version>
+            <version>0.12.2</version>
             <classifier>fat</classifier>
           </dependency>
         </dependencies>
