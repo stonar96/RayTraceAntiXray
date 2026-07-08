@@ -14,7 +14,7 @@ public final class ChunkBlocks {
 
     public ChunkBlocks(LevelChunk chunk, Map<BlockPos, Boolean> blocks) {
         this.chunk = new WeakReference<>(chunk);
-        key = new LongWrapper(chunk.getPos().toLong());
+        key = new LongWrapper(chunk.getPos().longKey());
         this.blocks = blocks;
     }
 

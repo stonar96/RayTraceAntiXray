@@ -144,7 +144,7 @@ public final class PacketListener extends PacketAdapter {
             }
 
             ChunkCoordIntPair chunkCoordIntPair = event.getPacket().getChunkCoordIntPairs().read(0);
-            playerData.getChunks().remove(new LongWrapper(ChunkPos.asLong(chunkCoordIntPair.getChunkX(), chunkCoordIntPair.getChunkZ())));
+            playerData.getChunks().remove(new LongWrapper(ChunkPos.pack(chunkCoordIntPair.getChunkX(), chunkCoordIntPair.getChunkZ())));
         } else if (packetType == PacketType.Play.Server.RESPAWN) {
             // As with world changes, chunk unload packets aren't sent on respawn.
             // All required chunks are (re)sent afterwards.

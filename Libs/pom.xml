@@ -7,8 +7,8 @@
   <name>Libs</name>
   <description>Libs.</description>
   <properties>
-    <minecraftVersion>1.21.11</minecraftVersion>
-    <paperVersion>${minecraftVersion}-R0.1-SNAPSHOT</paperVersion>
+    <minecraftVersion>26.1.1</minecraftVersion>
+    <paperVersion>${minecraftVersion}.build.29-alpha</paperVersion>
   </properties>
   <repositories>
     <repository>
@@ -21,7 +21,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
-        <version>3.9.0</version>
+        <version>3.11.0</version>
         <executions>
           <execution>
             <id>unpack</id>
@@ -82,7 +82,6 @@
               <groupId>io.papermc.paper</groupId>
               <artifactId>paper-server</artifactId>
               <version>${paperVersion}</version>
-              <classifier>mojang-mapped</classifier>
               <packaging>jar</packaging>
               <generatePom>true</generatePom>
             </configuration>
