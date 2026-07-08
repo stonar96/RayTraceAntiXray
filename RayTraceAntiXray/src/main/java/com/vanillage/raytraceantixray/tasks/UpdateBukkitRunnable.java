@@ -132,7 +132,7 @@ public final class UpdateBukkitRunnable extends BukkitRunnable implements Consum
     private static boolean sendPacketImmediately(Player player, Object packet) {
         ServerGamePacketListenerImpl connection = ((CraftPlayer) player).getHandle().connection;
 
-        if (connection == null || connection.processedDisconnect) {
+        if (connection == null) {
             return false;
         }
 
