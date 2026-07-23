@@ -7,8 +7,8 @@
   <name>Libs</name>
   <description>Libs.</description>
   <properties>
-    <minecraftVersion>26.1.2</minecraftVersion>
-    <paperVersion>${minecraftVersion}.build.74-stable</paperVersion>
+    <minecraftVersion>26.2</minecraftVersion>
+    <paperVersion>${minecraftVersion}.build.65-beta</paperVersion>
   </properties>
   <repositories>
     <repository>
